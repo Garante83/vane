@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 350 100" width="350" height="100">
+  <rect width="350" height="100" rx="6" fill="#0d1117" stroke="#30363d" stroke-width="2"/>
+  
+  <text x="30" y="62" font-family="ui-monospace, SFMono-Regular, 'JetBrains Mono', Consolas, monospace" font-size="36" fill="#00ADD8" font-weight="bold">vane</text>
+  
+  <text x="125" y="62" font-family="ui-monospace, SFMono-Regular, 'JetBrains Mono', Consolas, monospace" font-size="36" fill="#8b949e">|&gt;</text>
+  
+  <rect x="180" y="38" width="18" height="28" fill="#2ea043"/>
+</svg>
