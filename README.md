@@ -60,6 +60,14 @@ For advanced Outbound LAN (`>`) routing, you are not limited to replacing only t
 - **1 Dot (`.`)** $\rightarrow$ Keeps **1 octet** of your IP, replaces the 2nd, 3rd, and 4th:
   - `eno1|>.2.100.33` $\rightarrow$ `192.2.100.33` (keeps `192.`)
 
+### MAC Suffix to IPv4 Resolution
+
+In dual-stack networks, if you only know the EUI-64 MAC suffix of a machine but want to connect using legacy IPv4, **vane**'s Outbound LAN (`>`) modifier can dynamically resolve it. 
+
+If you pass a hex MAC / EUI-64 suffix (any suffix containing hex characters, colons, or having a length of 4 or more characters) under the IPv4 modifier (`>`), **vane** automatically matches it against the adapter's hardware MAC and resolves it directly to your active local IPv4:
+- `eno1|>...3e8e` $\rightarrow$ matches the EUI-64 of `eno1` and resolves to `192.168.178.53`
+- If the MAC suffix does not match your active adapter, **vane** prevents invalid addressing and safely exits with a clear error: `[vane] Error: MAC suffix '9999' does not match interface eno1.`
+
 ---
 
 ## Interface Shorthands (Indices & Aliases)
