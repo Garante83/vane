@@ -1,0 +1,11 @@
+# Linux
+ping fe80::1ac0:4dff:feda:3e8e%eno1
+# ODER
+ping -I eno1 fe80::1ac0:4dff:feda:3e8e
+
+#Windows
+#PS
+Get-NetIPInterface -AddressFamily IPv6
+#cmd
+ping fe80::1ac0:4dff:feda:3e8e%12
+

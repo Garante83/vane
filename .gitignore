@@ -1,0 +1,14 @@
+# Compiled binaries (exclude the compiled application)
+vane
+vane.exe
+
+# Go-specific exclusions
+*.out
+*.test
+*.prof
+cpu.pprof
+mem.pprof
+
+# OS-specific files
+.DS_Store
+Thumbs.db
