@@ -18,7 +18,7 @@ type Token struct {
 // vaneRegex defines the structural pattern of the Vane CLI syntax.
 // It allows optional spaces before the pipe character for clean visual alignments in tables,
 // and supports multi-octet host parts (containing dots) and dynamic gateway keywords.
-var vaneRegex = regexp.MustCompile(`([a-zA-Z0-9]+)\s*\|([>:<!])(\.+)([0-9\.]+|gw|router)(?::([0-9]+))?`)
+var vaneRegex = regexp.MustCompile(`([a-zA-Z0-9]+)\s*\|([>:<!])(\.+)([a-fA-F0-9\.:]+|gw|router)(?::([0-9]+))?`)
 
 // ParseToken validates and parses a token string (maintained for backwards compatibility).
 func ParseToken(input string) (*Token, bool) {
