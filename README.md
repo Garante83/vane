@@ -126,31 +126,26 @@ vane curl "http://[eno1|<...3e8e]:8080/"
 
 You can use the `-c` flag to query, translate, and cross-reference network configurations bidirectionally on any active adapter:
 
-#### A. Resolve a MAC/EUI-64 suffix to all possible IP representations:
+#### A. Quick-map a hardware MAC/EUI-64 suffix back to your decimal IPv4:
 ```bash
 vane -c eno1 1ac0:4dff:feda:3e8e
 ```
 **Output:**
 ```text
-  Local IPv4 Address: 192.168.178.53
-  Local IPv6 Prefix:  2001:9731:b7c6::
-  Hardware MAC Suffix: 1ac0:4dff:feda:3e8e
-
-  Resolved Conversions for eno1:
-  -> Vane-Syntax:      eno1|>...53
-  -> Link-Local:       fe80::1ac0:4dff:feda:3e8e
-  -> ULA (Internal):   fd99:9731:b7c6:0:1ac0:4dff:feda:3e8e
-  -> Global (WAN):     2001:9731:b7c6:0:1ac0:4dff:feda:3e8e
+  -> IPv4 Equivalent: 192.168.178.53
 ```
 
-#### B. Quick-map a simple host suffix back to your active local IPv4:
+#### B. Resolve an IPv4 host octet to all corresponding EUI-64 IPv6 representations:
 ```bash
 vane -c eno1 53
 ```
 **Output:**
 ```text
-  Resolved Conversions for eno1:
-  -> IPv4 Address:     192.168.178.53
+  -> Vane-Syntax:   eno1|>...53
+  -> IPv4-Standard: 192.168.178.53
+  -> Link-Local:    fe80::1ac0:4dff:feda:3e8e
+  -> ULA (Internal): fd99:9731:b7c6:0:1ac0:4dff:feda:3e8e
+  -> Global (WAN):  2002:d5b6:7403:0:1ac0:4dff:feda:3e8e
 ```
 
 ---
