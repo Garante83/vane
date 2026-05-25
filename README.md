@@ -182,7 +182,7 @@ vane trace "eno1|>...gw"
 vane trace 1.1.1.1
 ```
 
-### 7. Zero-Config Encrypted P2P File Streaming (Spezialwerkzeug)
+### 7. Zero-Config Encrypted P2P File Streaming.
 
 Send files securely between systems on your local network without any pre-shared keys, relay servers, or configuration. 
 
