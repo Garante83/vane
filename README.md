@@ -51,6 +51,28 @@ When you run `vane` without arguments, it generates a perfect, vertically-aligne
 
 ---
 
+## Interface Shorthands (Indices & Aliases)
+
+Windows and Linux network adapter names can be long, case-sensitive, or contain spaces (e.g. `Ethernet 2` or `Wi-Fi`). To make typing as fast and painless as possible, **vane** features built-in adapter name abstraction:
+
+### 1. Index-Based Matching
+Instead of typing the full adapter name, you can simply use its **numerical index** (1-based physical active adapters) as displayed in the `vane` matrix report:
+- `1|>...33` (resolves using the first active physical interface, e.g. `Ethernet 2`)
+- `2|<...3e8e` (resolves using the second active physical interface, e.g. `Wi-Fi`)
+
+### 2. Common Abbreviation Aliases
+**vane** automatically maps standard Linux/Unix abbreviations to their Windows equivalents:
+- `eth` / `eth1` / `eth2` $\rightarrow$ dynamically matches any interface containing `Ethernet`
+- `wlan` / `wifi` / `wlan0` $\rightarrow$ dynamically matches any interface containing `Wi-Fi` or `wlan`
+- *Example*: `eth|>...33` will automatically resolve against `Ethernet 2`.
+
+### 3. Case-Insensitive Prefix Matching
+You can type any case-insensitive starting portion of the interface name:
+- `ether|>...33` $\rightarrow$ matches `Ethernet`
+- `wi|>...33` $\rightarrow$ matches `Wi-Fi`
+
+---
+
 ## Installation
 
 ### From Source
