@@ -207,7 +207,7 @@ vane send backup.tar.gz --code 192.168.178.53#7392-1845
 ```
 Both sides will display real-time progress, speed, and automatically verify file integrity using on-the-fly parallel SHA-256 hashing.
 
-### 8. Real-Time HTTP & DNS Traffic Sniffer (Spezialwerkzeug)
+### 8. Real-Time HTTP & DNS Traffic Sniffer.
 
 Sniff and analyze network traffic in real-time without installing complex tools like Wireshark or tcpdump. It operates fully cross-platform with zero external dependencies!
 
