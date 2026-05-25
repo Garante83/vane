@@ -160,7 +160,7 @@ vane -c eno1 53
   -> Global (WAN):  2002:d5b6:7403:0:1ac0:4dff:feda:3e8e
 ```
 
-### 5. High-Visibility Subnet Scan (Spezialwerkzeug)
+### 5. High-Visibility Subnet Scan.
 
 Scan the subnet of the first active physical network interface (auto-detected) or a specifically named adapter:
 ```bash
