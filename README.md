@@ -72,7 +72,7 @@ For advanced Outbound LAN (`>`) routing, you are not limited to replacing only t
 
 In dual-stack networks, if you only know the EUI-64 MAC suffix of a machine but want to connect using legacy IPv4, **vane**'s Outbound LAN (`>`) modifier can dynamically resolve it. 
 
-If you pass a hex MAC / EUI-64 suffix (any suffix containing hex characters, colons, or having a length of 4 or more characters) under the IPv4 modifier (`>`), **vane** automatically matches it against the adapter's hardware MAC and resolves it directly to your active local IPv4:
+If you pass a hex MAC / EUI-64 suffix (any suffix containing hex characters, colons, or having a length of 4 or more characters) under the LAN modifier (`>`), **vane** automatically matches it against the adapter's hardware MAC and resolves it directly to your active local IPv4:
 - `eno1|>...3e8e` $\rightarrow$ matches the EUI-64 of `eno1` and resolves to `192.168.178.53`
 - If the MAC suffix does not match your active adapter, **vane** prevents invalid addressing and safely exits with a clear error: `[vane] Error: MAC suffix '9999' does not match interface eno1.`
 
