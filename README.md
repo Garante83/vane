@@ -33,7 +33,7 @@ When you run `vane` without arguments, it generates a perfect, vertically-aligne
   lo          [ UP ]    Loopback   lo   |:...1        127.0.0.1 / ::1
   eno1        [ UP ]    LAN (v4)   eno1 |>...53       192.168.178.53
                         (Gateway)  eno1 |>...gw       192.168.178.1
-                        LAN (v6)   eno1 |<...3e8e     2001:9731:b7c6:...:3e8e
+                        WAN (v6)   eno1 |<...3e8e     2001:9731:b7c6:...:3e8e
  ──────────────────────────────────────────────────────────────────────────────
 ```
 
