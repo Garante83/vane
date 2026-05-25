@@ -1,5 +1,4 @@
-# vane ─ The Smart CLI Network Proxy & Matrix Report
-
+# vane ─ Variable Arguments Network Executor
 [![Go Report Card](https://goreportcard.com/badge/github.com/Garante83/vane)](https://goreportcard.com/report/github.com/Garante83/vane)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
