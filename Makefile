@@ -10,7 +10,7 @@ run:
 
 # Installiert vane global im System, so dass es von überall aufgerufen werden kann
 install: build
-	sudo cp vane /usr/local/bin/vane
+	sudo install -m 755 vane /usr/local/bin/vane
 	@echo "[vane] Erfolgreich global als 'vane' installiert!"
 
 # Deinstalliert vane global aus dem System

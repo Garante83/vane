@@ -12,6 +12,10 @@ Additionally, running `vane` without arguments displays a gorgeous, color-coded,
 ## Key Features
 
 - **Dynamic Network Matrix (`vane`)**: Get a beautifully formatted, color-coded table of all network adapters, their link status, type, global IPv4/IPv6 addresses, default gateways, and copy-pasteable syntax strings.
+- **High-Visibility Subnet Scan (`vane scan [interface]`)**: An ultra-fast, concurrent TCP stealth sweeper that discovers alive hosts on your subnet, sweeps common ports, queries the kernel ARP table, and outputs copy-pasteable Vane tokens in a stramm aligned grid.
+- **Interactive Route & Latency Profiler (`vane trace <target>`)**: A beautiful, real-time MTR-style path and jitter profiler that queries routing hops and concurrent-pings them to produce live ASCII sparkline graphs. Fully supports raw IPs, domains, and dynamic Vane syntax targets.
+- **Secure High-Speed P2P Streaming (`vane send` / `vane recv`)**: Zero-config, peer-to-peer encrypted file transfers using ephemeral TLS 1.3 + ECDHE, session-bound HMAC grouping pairing codes, and parallel on-the-fly SHA-256 integrity verification. Zero external dependencies.
+- **Real-Time HTTP & DNS Traffic Sniffer (`vane sniff [interface]`)**: Pure-Go zero-dependency traffic capture tool. Uses native Linux Raw Sockets (`AF_PACKET`) to monitor HTTP requests and DNS queries in real-time, or a PowerShell connection-to-process mapper on Windows.
 - **Smart Gateway Resolution (`...gw` / `...router`)**: Automatically queries `/proc/net/route` (Linux) or powershell API (Windows) under the hood to resolve an interface's active default gateway.
 - **Zero-Dependency Core**: Built purely with Go's standard library. Zero external libraries, ensuring lightning-fast execution and zero supply chain overhead.
 - **Shell-Safe Syntax Substitution**: Write robust commands like `vane ping "eno1|>...gw"` or `vane curl "http://[eno1|<...3e8e]:8080/"`.
@@ -154,6 +158,88 @@ vane -c eno1 53
   -> Link-Local:    fe80::1ac0:4dff:feda:3e8e
   -> ULA (Internal): fd99:9731:b7c6:0:1ac0:4dff:feda:3e8e
   -> Global (WAN):  2002:d5b6:7403:0:1ac0:4dff:feda:3e8e
+```
+
+### 5. High-Visibility Subnet Scan (Spezialwerkzeug)
+
+Scan the subnet of the first active physical network interface (auto-detected) or a specifically named adapter:
+```bash
+vane scan
+```
+Or target an interface index/alias resolved by Vane:
+```bash
+vane scan eno1
+vane scan 1
+vane scan eth
+```
+
+### 6. Interactive Route & Latency Profiler (Spezialwerkzeug)
+
+Trace the routing hops and monitor latency/jitter in real-time using live ASCII sparkline graphs. Supports domains, IPs, and Vane-Syntax:
+```bash
+vane trace google.com
+vane trace "eno1|>...gw"
+vane trace 1.1.1.1
+```
+
+### 7. Zero-Config Encrypted P2P File Streaming (Spezialwerkzeug)
+
+Send files securely between systems on your local network without any pre-shared keys, relay servers, or configuration. 
+
+**On the receiver:**
+```bash
+vane recv
+```
+Output:
+```text
+┌────────────────────────────────────────────────────────────────────┐
+│  vane recv ─ Standing by for incoming file transfer...             │
+└────────────────────────────────────────────────────────────────────┘
+  Listening on: [::]:8484 (All Interfaces)
+  Receiver IPs: 192.168.178.53
+  Pairing Code: 192.168.178.53#7392-1845
+```
+
+**On the sender:**
+Simply supply the file path and the pairing code:
+```bash
+vane send backup.tar.gz --code 192.168.178.53#7392-1845
+```
+Both sides will display real-time progress, speed, and automatically verify file integrity using on-the-fly parallel SHA-256 hashing.
+
+### 8. Real-Time HTTP & DNS Traffic Sniffer (Spezialwerkzeug)
+
+Sniff and analyze network traffic in real-time without installing complex tools like Wireshark or tcpdump. It operates fully cross-platform with zero external dependencies!
+
+**On Linux (captures raw packets using raw sockets):**
+```bash
+sudo vane sniff eno1
+```
+Output:
+```text
+┌────────────────────────────────────────────────────────────────────────┐
+│  vane sniff ─ Monitoring HTTP & DNS Traffic on eno1                    │
+└────────────────────────────────────────────────────────────────────────┘
+  TIME      PROTO  SOURCE           TARGET           DETAIL
+ ────────────────────────────────────────────────────────────────────────
+  16:01:23  DNS    192.168.178.53   1.1.1.1          QUERY: google.com
+  16:01:24  HTTP   192.168.178.53   142.250.102.138  GET:   /index.html (Host: google.com)
+  16:01:25  ICMP   192.168.178.53   1.1.1.1          PING REQUEST
+  16:01:25  ICMP   1.1.1.1          192.168.178.53   PING REPLY
+```
+
+**On Windows (falls back to a real-time established TCP connection-to-process mapper):**
+```bash
+vane sniff
+```
+Output:
+```text
+┌────────────────────────────────────────────────────────────────────────┐
+│  vane sniff ─ Active Connection Monitor (Windows Fallback)             │
+└────────────────────────────────────────────────────────────────────────┘
+  TIME      PROTO  LOCAL ADDRESS    FOREIGN ADDRESS  PROCESS (PID)
+ ────────────────────────────────────────────────────────────────────────
+  16:01:23  TCP    192.168.178.53   142.250.102.138  firefox (4132)
 ```
 
 ---
