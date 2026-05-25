@@ -173,7 +173,7 @@ vane scan 1
 vane scan eth
 ```
 
-### 6. Interactive Route & Latency Profiler (Spezialwerkzeug)
+### 6. Interactive Route & Latency Profiler.
 
 Trace the routing hops and monitor latency/jitter in real-time using live ASCII sparkline graphs. Supports domains, IPs, and Vane-Syntax:
 ```bash
