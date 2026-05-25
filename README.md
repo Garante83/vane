@@ -49,6 +49,17 @@ When you run `vane` without arguments, it generates a perfect, vertically-aligne
 | `:` | Loopback | Standard local loopback | `lo\|:...1` | `::1` or `127.0.0.1` |
 | `!` | APIPA Warning | Alerts and handles DHCP fallbacks | `eno1\|!...34` | `169.254.12.34` |
 
+### Multi-Octet Suffix Overrides
+
+For advanced Outbound LAN (`>`) routing, you are not limited to replacing only the final octet. The number of **dots** in the token specifies exactly how many octets of your local active IP are kept from the left:
+
+- **3 Dots (`...`)** $\rightarrow$ Keeps **3 octets** of your IP, replaces the 4th:
+  - `eno1|>...33` $\rightarrow$ `192.168.178.33` (keeps `192.168.178.`)
+- **2 Dots (`..`)** $\rightarrow$ Keeps **2 octets** of your IP, replaces the 3rd and 4th:
+  - `eno1|>..100.33` $\rightarrow$ `192.168.100.33` (keeps `192.168.`)
+- **1 Dot (`.`)** $\rightarrow$ Keeps **1 octet** of your IP, replaces the 2nd, 3rd, and 4th:
+  - `eno1|>.2.100.33` $\rightarrow$ `192.2.100.33` (keeps `192.`)
+
 ---
 
 ## Interface Shorthands (Indices & Aliases)
@@ -112,8 +123,34 @@ vane curl "http://[eno1|<...3e8e]:8080/"
 ```
 
 ### 4. Interactive Infocenter (Conversion Mode)
+
+You can use the `-c` flag to query, translate, and cross-reference network configurations bidirectionally on any active adapter:
+
+#### A. Resolve a MAC/EUI-64 suffix to all possible IP representations:
 ```bash
 vane -c eno1 1ac0:4dff:feda:3e8e
+```
+**Output:**
+```text
+  Local IPv4 Address: 192.168.178.53
+  Local IPv6 Prefix:  2001:9731:b7c6::
+  Hardware MAC Suffix: 1ac0:4dff:feda:3e8e
+
+  Resolved Conversions for eno1:
+  -> Vane-Syntax:      eno1|>...53
+  -> Link-Local:       fe80::1ac0:4dff:feda:3e8e
+  -> ULA (Internal):   fd99:9731:b7c6:0:1ac0:4dff:feda:3e8e
+  -> Global (WAN):     2001:9731:b7c6:0:1ac0:4dff:feda:3e8e
+```
+
+#### B. Quick-map a simple host suffix back to your active local IPv4:
+```bash
+vane -c eno1 53
+```
+**Output:**
+```text
+  Resolved Conversions for eno1:
+  -> IPv4 Address:     192.168.178.53
 ```
 
 ---
