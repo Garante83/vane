@@ -1,3 +1,6 @@
+<p align="center">
+  <img src="assets/logo.svg" alt="vane CLI Logo" width="350">
+</p>
 # vane ─ Variable Arguments Network Executor
 [![Go Report Card](https://goreportcard.com/badge/github.com/Garante83/vane)](https://goreportcard.com/report/github.com/Garante83/vane)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
