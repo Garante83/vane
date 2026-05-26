@@ -24,7 +24,7 @@ Additionally, running `vane` without arguments displays a gorgeous, color-coded,
 - **Zero-Dependency Core**: Built purely with Go's standard library. Zero external libraries, ensuring lightning-fast execution and zero supply chain overhead.
 - **Shell-Safe Syntax Substitution**: Write robust commands like `vane ping "eno1|>...gw"` or `vane curl "http://[eno1|<...3e8e]:8080/"`.
 - **Pre-Flight Port-Peeking**: Fast TCP connectivity check (200ms timeout) before starting complex commands (like `ssh` or `nmap`), preventing hanging connections.
-- **Cross-Platform**: Full support for Linux(and macOS(darwin), and Windows <-(Alpha/untested)).
+- **Cross-Platform**: Full support for Linux (macOS(darwin), and Windows <-(untested/Alpha)).
 
 ---
 
