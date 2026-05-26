@@ -110,16 +110,31 @@ func PerformScan(ifaceName string) error {
 	}
 	close(ipsChan)
 
-	wg.Wait()
-	close(resultsChan)
+	// Start a background goroutine to close the results channel when workers finish
+	go func() {
+		wg.Wait()
+		close(resultsChan)
+	}()
 
-	// Gather & sort alive results
+	// Gather & sort alive results with a real-time progress spinner to keep the administrator informed
 	var activeHosts []ScanResult
+	spinner := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+	idx := 0
+	count := 0
+	total := len(ips)
+
 	for res := range resultsChan {
+		count++
 		if res.IsAlive {
 			activeHosts = append(activeHosts, res)
 		}
+		// Render real-time progress inline
+		idx = (idx + 1) % len(spinner)
+		fmt.Printf("\r  %s Sweeping subnet: %d/%d IPs processed... (found %d alive)", spinner[idx], count, total, len(activeHosts))
 	}
+	
+	// Erase the progress line completely to render the final results cleanly
+	fmt.Print("\r\x1b[K")
 
 	sort.Slice(activeHosts, func(i, j int) bool {
 		ip1 := net.ParseIP(activeHosts[i].IP)

@@ -62,6 +62,8 @@ func PerformSniff(ifaceName string) error {
 		os.Exit(0)
 	}()
 
+	StartStandbySpinner()
+
 	buf := make([]byte, 65536)
 	for {
 		n, _, err := syscall.Recvfrom(fd, buf, 0)
@@ -297,6 +299,10 @@ func printLog(proto, src, dst, detail string) {
 	} else if strings.HasPrefix(coloredDetail, "DEST UNREACHABLE") {
 		coloredDetail = "\033[31mDEST UNREACHABLE\033[0m" // Red for errors
 	}
+
+	MarkOutputLogged()
+	LockOutput()
+	defer UnlockOutput()
 
 	fmt.Printf("  %-8s  %s  %-15s  %-15s  %s\n", timeStr, paddedProto, src, dst, coloredDetail)
 }

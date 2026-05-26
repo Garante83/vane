@@ -489,8 +489,13 @@ func handleConvert(ifaceName, val string) {
 			break
 		}
 	}
-	if len(val) >= 4 && !isHex {
+	if len(val) >= 4 && !isHex && !strings.Contains(val, ".") {
 		isHex = true
+	}
+	if !isHex && !strings.Contains(val, ".") {
+		if num, err := strconv.Atoi(val); err == nil && num > 255 {
+			isHex = true
+		}
 	}
 
 	if isHex {
@@ -522,8 +527,10 @@ func handleConvert(ifaceName, val string) {
 
 	// Fallback conversion to decimal output matrix
 	ipv4Str := "192.168.178.53"
+	dots := 3
 	if state.IPv4Local != nil {
-		ipv4Str = resolveIPv4Dots(state.IPv4Local, 3, val)
+		dots = 4 - strings.Count(val, ".") - 1
+		ipv4Str = resolveIPv4Dots(state.IPv4Local, dots, val)
 	}
 
 	eui64 := "1ac0:4dff:feda:3e8e"
@@ -542,7 +549,11 @@ func handleConvert(ifaceName, val string) {
 		globalPrefix += ":"
 	}
 
-	fmt.Printf("-> Vane-Syntax:   %s|>...%s\n", ifaceName, val)
+	dotsStr := strings.Repeat(".", dots)
+	if dots < 0 {
+		dotsStr = ""
+	}
+	fmt.Printf("-> Vane-Syntax:   %s|>%s%s\n", ifaceName, dotsStr, val)
 	fmt.Printf("-> IPv4-Standard: %s\n", ipv4Str)
 	fmt.Printf("-> Link-Local:    %s\n", linkLocal)
 	fmt.Printf(msg.ConvertULA, ulaPrefix, eui64)
@@ -834,8 +845,13 @@ func resolveTokenIP(targetToken *parser.Token, state *netstate.State) string {
 					break
 				}
 			}
-			if len(targetToken.HostPart) >= 4 {
+			if len(targetToken.HostPart) >= 4 && !strings.Contains(targetToken.HostPart, ".") {
 				isHex = true
+			}
+			if !isHex && !strings.Contains(targetToken.HostPart, ".") {
+				if num, err := strconv.Atoi(targetToken.HostPart); err == nil && num > 255 {
+					isHex = true
+				}
 			}
 
 			if isHex {

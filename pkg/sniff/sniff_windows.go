@@ -29,6 +29,8 @@ func PerformSniff(ifaceName string) error {
 		os.Exit(0)
 	}()
 
+	StartStandbySpinner()
+
 	seen := make(map[string]bool)
 	for {
 		connections, err := getActiveWindowsConnections()
@@ -37,9 +39,12 @@ func PerformSniff(ifaceName string) error {
 			for _, conn := range connections {
 				key := fmt.Sprintf("%s-%s-%s", conn.Proto, conn.Local, conn.Foreign)
 				if !seen[key] {
+					MarkOutputLogged()
+					LockOutput()
 					seen[key] = true
 					fmt.Printf("  %-8s  %-5s  %-21s  %-21s  %s\n",
 						timeStr, conn.Proto, conn.Local, conn.Foreign, truncateStr(conn.Process, 25))
+					UnlockOutput()
 				}
 			}
 		}
