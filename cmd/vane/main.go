@@ -904,7 +904,11 @@ func resolveTokenIP(targetToken *parser.Token, state *netstate.State) string {
 		if targetToken.HostPart == "1" {
 			targetIP = "::1"
 		} else {
-			targetIP = "127.0.0.1"
+			baseIP := net.ParseIP("127.0.0.1")
+			if state.IPv4Local != nil {
+				baseIP = state.IPv4Local
+			}
+			targetIP = resolveIPv4Dots(baseIP, targetToken.Dots, targetToken.HostPart)
 		}
 
 	case "!": // APIPA (DHCP-FAIL fallback)

@@ -168,21 +168,41 @@ func PerformScan(ifaceName string) error {
 		// Format open ports elegantly with a strict truncation limit of 2 to preserve columns
 		portsStr := formatPorts(host.OpenPorts)
 
-		// Create Vane syntax suggestions
-		syntax := "──"
+		// Create Vane syntax suggestions with matrix-aligned coloring
+		isLoopback := (iface.Flags & net.FlagLoopback) != 0
+		var syntaxColored string
 		parts := strings.Split(host.IP, ".")
 		if len(parts) == 4 {
 			lastOctet := parts[3]
-			if host.IP == gatewayIP {
-				syntax = fmt.Sprintf("%s|>...gw", ifaceName)
-			} else {
-				syntax = fmt.Sprintf("%s|>...%s", ifaceName, lastOctet)
+			mod := ">"
+			if isLoopback {
+				mod = ":"
 			}
-		}
 
-		// Pad raw syntax to exactly 16 characters first, then apply green color
-		syntaxPadded := fmt.Sprintf("%-16s", syntax)
-		syntaxColored := "\x1b[1;32m" + syntaxPadded + "\x1b[0m"
+			suffix := lastOctet
+			if !isLoopback && host.IP == gatewayIP {
+				suffix = "gw"
+			}
+
+			plain := fmt.Sprintf("%s|%s...%s", ifaceName, mod, suffix)
+			var coloredMod string
+			switch mod {
+			case ">":
+				coloredMod = "\x1b[1;32m>\x1b[0m" // Green
+			case ":":
+				coloredMod = "\x1b[1;35m:\x1b[0m" // Magenta
+			default:
+				coloredMod = mod
+			}
+
+			padding := 16 - len(plain)
+			if padding < 0 {
+				padding = 0
+			}
+			syntaxColored = fmt.Sprintf("%s|%s...%s%s", ifaceName, coloredMod, suffix, strings.Repeat(" ", padding))
+		} else {
+			syntaxColored = fmt.Sprintf("%-16s", "──")
+		}
 
 		// Format MAC & Vendor
 		macVendor := "──"
