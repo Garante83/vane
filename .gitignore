@@ -1,5 +1,5 @@
 # Compiled binaries (exclude the compiled application)
-vane
+/vane
 vane.exe
 
 # Go-specific exclusions
