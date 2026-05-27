@@ -610,7 +610,9 @@ func printInterfaceMatrix() {
 
 		// Calculate index-based interface representation matching Vane's internal parser
 		displayName := iface.Name
-		if !isLoopback && isUp {
+		if isLoopback {
+			displayName = fmt.Sprintf("[0] %s", iface.Name)
+		} else if !isLoopback && isUp {
 			activeCount++
 			displayName = fmt.Sprintf("[%d] %s", activeCount, iface.Name)
 		}

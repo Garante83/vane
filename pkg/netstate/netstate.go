@@ -88,8 +88,17 @@ func findInterface(name string) (*net.Interface, error) {
 		return (i.Flags & net.FlagUp) != 0
 	}
 
-	// 1. Index-based matching: e.g. "1" matches the first active physical adapter
+	// 1. Index-based matching: "0" matches loopback, "1" matches the first active physical adapter
 	if idx, err := strconv.Atoi(name); err == nil {
+		if idx == 0 {
+			// Find and return the loopback interface
+			for _, i := range ifaces {
+				if (i.Flags & net.FlagLoopback) != 0 {
+					return &i, nil
+				}
+			}
+		}
+
 		activeCount := 0
 		for _, i := range ifaces {
 			if (i.Flags & net.FlagLoopback) != 0 {
