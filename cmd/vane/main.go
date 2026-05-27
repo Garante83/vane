@@ -972,69 +972,13 @@ func resolveTokenIP(targetToken *parser.Token, state *netstate.State) string {
 			}
 		}
 
-	case "<": // External WAN (IPv6) or Subnet MAC-Matching (ARP)
-		// Check if HostPart is a MAC suffix (contains hex characters or has a length of 4 or more)
-		isHex := false
-		if targetToken.HostPart != "" {
-			for _, c := range targetToken.HostPart {
-				if (c < '0' || c > '9') && c != '.' {
-					isHex = true
-					break
-				}
-			}
-			if len(targetToken.HostPart) >= 4 && !strings.Contains(targetToken.HostPart, ".") {
-				isHex = true
-			}
-			if !isHex && !strings.Contains(targetToken.HostPart, ".") {
-				if num, err := strconv.Atoi(targetToken.HostPart); err == nil && num > 255 {
-					isHex = true
-				}
-			}
+	case "<": // External WAN (IPv6)
+		if state.IPv6Global == nil {
+			fmt.Fprintf(os.Stderr, msg.ErrorNoIPv6, targetToken.Interface)
+			os.Exit(1)
 		}
 
-		if isHex {
-			// Perform MAC/ARP resolution in the subnet
-			eui64 := ""
-			if len(state.HardwareAddr) == 6 {
-				eui64 = computeEUI64(state.HardwareAddr)
-			}
-			valClean := strings.ToLower(strings.ReplaceAll(targetToken.HostPart, ":", ""))
-			euiClean := strings.ToLower(strings.ReplaceAll(eui64, ":", ""))
-
-			matched := false
-			if euiClean != "" && valClean != "" {
-				if strings.HasSuffix(euiClean, valClean) || strings.Contains(euiClean, valClean) {
-					matched = true
-				}
-			}
-
-			if matched {
-				if state.IPv4Local != nil {
-					targetIP = state.IPv4Local.String()
-				} else if state.IPv6Global != nil {
-					targetIP = state.IPv6Global.String()
-				} else {
-					fmt.Fprintf(os.Stderr, msg.ErrorMACMismatch, targetToken.HostPart, state.InterfaceName)
-					os.Exit(1)
-				}
-			} else {
-				// True dynamic subnet scanning: query kernel ARP table!
-				resolvedIP, err := resolveRemoteIPFromARP(state.InterfaceName, targetToken.HostPart)
-				if err == nil && resolvedIP != "" {
-					targetIP = resolvedIP
-				} else {
-					fmt.Fprintf(os.Stderr, msg.ErrorMACMismatch, targetToken.HostPart, state.InterfaceName)
-					os.Exit(1)
-				}
-			}
-		} else {
-			// Normal IPv6 WAN resolution
-			if state.IPv6Global == nil {
-				fmt.Fprintf(os.Stderr, msg.ErrorNoIPv6, targetToken.Interface)
-				os.Exit(1)
-			}
-			targetIP = resolveIPv6WAN(state.IPv6Global, targetToken.HostPart, state.HardwareAddr)
-		}
+		targetIP = resolveIPv6WAN(state.IPv6Global, targetToken.HostPart, state.HardwareAddr)
 
 	case ":": // Loopback (lo)
 		if targetToken.HostPart == "1" {
