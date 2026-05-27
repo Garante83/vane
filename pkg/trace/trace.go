@@ -47,10 +47,34 @@ func PerformTrace(target string) error {
 	fmt.Printf("┌────────────────────────────────────────────────────────────────────┐\033[K\n")
 	fmt.Printf("│  vane trace ─ Resolving path to: %-32s  │\033[K\n", truncateStr(target, 32))
 	fmt.Printf("└────────────────────────────────────────────────────────────────────┘\033[K\n")
-	fmt.Printf("  Finding intermediate gateways (hops) via native traceroute...\033[K\n\n")
+	// Start interactive background spinner to show activity during hop discovery
+	doneChan := make(chan struct{})
+	var spinnerWg sync.WaitGroup
+	spinnerWg.Add(1)
+	go func() {
+		defer spinnerWg.Done()
+		spinner := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+		idx := 0
+		for {
+			select {
+			case <-doneChan:
+				return
+			default:
+				fmt.Printf("\r  %s Finding intermediate gateways (hops) via native traceroute...\033[K", spinner[idx])
+				idx = (idx + 1) % len(spinner)
+				time.Sleep(100 * time.Millisecond)
+			}
+		}
+	}()
 
 	// 2. Discover hops
 	hopIPs, err := discoverHops(targetIP)
+	close(doneChan)
+	spinnerWg.Wait()
+
+	// Erase the spinner line cleanly and move to next line
+	fmt.Print("\r\033[K\n")
+
 	if err != nil {
 		return fmt.Errorf("hop discovery failed: %w", err)
 	}
@@ -78,6 +102,9 @@ func PerformTrace(target string) error {
 
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
+
+	// Print the initial grid immediately so the user sees the table structure instantly
+	printStatsGrid(target, targetIP, statsList)
 
 	// Interactivity Loop
 	run := true
@@ -121,6 +148,8 @@ func PerformTrace(target string) error {
 
 		wg.Wait()
 
+		// Move cursor back up to redraw the table in-place
+		fmt.Printf("\033[%dA", headerLines)
 		// Print live statistics grid
 		printStatsGrid(target, targetIP, statsList)
 
@@ -130,8 +159,7 @@ func PerformTrace(target string) error {
 			fmt.Print("\r\033[K") // Clear the line containing "^C"
 			fmt.Println("  Trace terminated by user.")
 		case <-ticker.C:
-			// Move cursor back up to redraw the table in-place
-			fmt.Printf("\033[%dA", headerLines)
+			// Loop to trigger next pings
 		}
 	}
 
