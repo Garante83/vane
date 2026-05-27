@@ -12,3 +12,6 @@ mem.pprof
 # OS-specific files
 .DS_Store
 Thumbs.db
+
+# Private Vane project concepts (stay strictly local)
+*_concept.md
