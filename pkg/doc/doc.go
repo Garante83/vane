@@ -78,9 +78,15 @@ func GetPages(lang string) []Page {
 				Content: []string{
 					"  Der Operator '|<' dient dem Auslesen globaler WAN-Verbindungsdaten.",
 					"",
-					"  📌 EXTERNE WAN-NOTATION (|< ohne Host-Part):",
+					"  📌 SYSTEM-EIGENE GLOBAL WAN-IP (|<):",
 					"    Gibt die globale IPv6-Adresse (GUA) der Schnittstelle aus, um direkte",
 					"    Verbindungen nach außen zu ermöglichen.",
+					"",
+					"  📌 AUTOMATISCHE EUI-64 HIERARCHIE (|< ohne Suffix / |<0):",
+					"    Berechnet aus der Hardware-MAC-Adresse des Interfaces automatisch die",
+					"    globale 64-Bit EUI-64-IPv6-Adresse zur direkten WAN-Verbindung.",
+					"    Beispiel (MAC: 00:15:5d:01:02:03) auf GUA-Präfix 2001:db8::",
+					"    eno1|<  -->  2001:db8::0215:5dff:fe01:0203",
 				},
 			},
 			{
@@ -168,9 +174,15 @@ func GetPages(lang string) []Page {
 			Content: []string{
 				"  The filter symbol '|<' extracts global WAN addresses for outbound connectivity.",
 				"",
-				"  📌 EXTERNAL WAN ADDRESS (|< without host suffix):",
+				"  📌 SYSTEM GLOBAL WAN-IP (|<):",
 				"    Resolves the global IPv6 address (GUA) on the interface for safe",
 				"    outbound connectivity.",
+				"",
+				"  📌 AUTOMATIC EUI-64 DERIVATION (|< with no suffix / |<0):",
+				"    Automatically derives the global 64-bit EUI-64 IPv6 address based on",
+				"    the network card's hardware MAC address for public routing.",
+				"    Example (MAC: 00:15:5d:01:02:03) on GUA prefix 2001:db8::",
+				"    eno1|<  -->  2001:db8::0215:5dff:fe01:0203",
 			},
 		},
 		{
