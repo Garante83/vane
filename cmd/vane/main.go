@@ -586,6 +586,7 @@ func printInterfaceMatrix() {
 	fmt.Println("  INTERFACE   STATUS    TYPE       VANE-SYNTAX        REAL IP / DESIGNATION     ")
 	fmt.Println(" ──────────────────────────────────────────────────────────────────────────────")
 
+	activeCount := 0
 	for _, iface := range ifaces {
 		state, err := netstate.GetInterfaceState(iface.Name)
 		if err != nil {
@@ -607,6 +608,13 @@ func printInterfaceMatrix() {
 			typeStr = "APIPA"
 		}
 
+		// Calculate index-based interface representation matching Vane's internal parser
+		displayName := iface.Name
+		if !isLoopback && isUp {
+			activeCount++
+			displayName = fmt.Sprintf("[%d] %s", activeCount, iface.Name)
+		}
+
 		if isLoopback {
 			v4Str := "127.0.0.1"
 			if state.IPv4Local != nil {
@@ -617,9 +625,9 @@ func printInterfaceMatrix() {
 				v6Str = state.IPv6LinkLocal.String()
 			}
 			coloredSyntax := getColoredSyntax(iface.Name, ":", "1")
-			fmt.Printf("  %-11s %s %-10s %s %s / %s\n", iface.Name, coloredStatus, typeStr, coloredSyntax, v4Str, v6Str)
+			fmt.Printf("  %-11s %s %-10s %s %s / %s\n", displayName, coloredStatus, typeStr, coloredSyntax, v4Str, v6Str)
 		} else if !isUp {
-			fmt.Printf("  %-11s %s %-10s %s [No Carrier]\n", iface.Name, coloredStatus, typeStr, getColoredSyntax("───", "", ""))
+			fmt.Printf("  %-11s %s %-10s %s [No Carrier]\n", displayName, coloredStatus, typeStr, getColoredSyntax("───", "", ""))
 		} else if state.IsAPIPA {
 			lastOctet := "34"
 			if state.IPv4Local != nil {
@@ -633,7 +641,7 @@ func printInterfaceMatrix() {
 				ipStr = state.IPv4Local.String()
 			}
 			coloredSyntax := getColoredSyntax(iface.Name, "!", lastOctet)
-			fmt.Printf("  %-11s %s %-10s %s %s (DHCP-FAIL)\n", iface.Name, coloredStatus, typeStr, coloredSyntax, ipStr)
+			fmt.Printf("  %-11s %s %-10s %s %s (DHCP-FAIL)\n", displayName, coloredStatus, typeStr, coloredSyntax, ipStr)
 		} else {
 			hasV4 := state.IPv4Local != nil
 			hasV6 := state.IPv6Global != nil
@@ -646,7 +654,7 @@ func printInterfaceMatrix() {
 				}
 				v4Type := typeStr + " (v4)"
 				coloredSyntax := getColoredSyntax(iface.Name, ">", lastOctet)
-				fmt.Printf("  %-11s %s %-10s %s %s\n", iface.Name, coloredStatus, v4Type, coloredSyntax, state.IPv4Local.String())
+				fmt.Printf("  %-11s %s %-10s %s %s\n", displayName, coloredStatus, v4Type, coloredSyntax, state.IPv4Local.String())
 
 				// Dynamic Default Gateway Line
 				gwIP, err := getDefaultGateway(iface.Name)
@@ -679,12 +687,12 @@ func printInterfaceMatrix() {
 				if hasV4 {
 					fmt.Printf("  %-11s %-9s %-10s %s %s\n", "", "", v6Type, coloredSyntax, displayIP)
 				} else {
-					fmt.Printf("  %-11s %s %-10s %s %s\n", iface.Name, coloredStatus, v6Type, coloredSyntax, displayIP)
+					fmt.Printf("  %-11s %s %-10s %s %s\n", displayName, coloredStatus, v6Type, coloredSyntax, displayIP)
 				}
 			}
 
 			if !hasV4 && !hasV6 {
-				fmt.Printf("  %-11s %s %-10s %s %s\n", iface.Name, coloredStatus, typeStr, getColoredSyntax("───", "", ""), msg.NoIPBound)
+				fmt.Printf("  %-11s %s %-10s %s %s\n", displayName, coloredStatus, typeStr, getColoredSyntax("───", "", ""), msg.NoIPBound)
 			}
 		}
 	}
@@ -842,9 +850,9 @@ func resolveTokenIP(targetToken *parser.Token, state *netstate.State) string {
 
 		// Dynamic gateway resolution for 'gw' or 'router' keywords
 		if targetToken.HostPart == "gw" || targetToken.HostPart == "router" {
-			gw, err := getDefaultGateway(targetToken.Interface)
+			gw, err := getDefaultGateway(state.InterfaceName)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, msg.ErrorGateway, targetToken.Interface, err)
+				fmt.Fprintf(os.Stderr, msg.ErrorGateway, state.InterfaceName, err)
 				os.Exit(1)
 			}
 			targetIP = gw
