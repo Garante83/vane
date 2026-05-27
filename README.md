@@ -156,7 +156,7 @@ vane scan eno1
 
 ## Platform Support Status
 
-* **Linux**: 🐧 **Fully Supported**.Tested across multiple environments (LXC, physical hosts).
+* **Linux**: 🐧 **Fully Supported**. Tested across multiple environments (LXC, physical hosts).
 * **macOS (Darwin)**: 🍎 **Experimental / Untested**. While compiled via cross-compilation target and structurally compatible, macOS raw sockets and interface naming have not been heavily verified in live settings.
 * **Windows**: 🪟 **Alpha / Restricted Support**. Works as a basic concept, but currently features known platform limitations (e.g., sniffing falls back to dynamic TCP process mapping via PowerShell). Expect rough edges as active testing on Windows has been limited.
 

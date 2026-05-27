@@ -82,6 +82,32 @@ func TestExtractToken(t *testing.T) {
 			found: true,
 		},
 		{
+			name:  "Outbound LAN with port and greedy regex check",
+			input: "eno1|>...33:2222",
+			expected: &Token{
+				FullMatch: "eno1|>...33:2222",
+				Interface: "eno1",
+				Direction: ">",
+				Dots:      3,
+				HostPart:  "33",
+				Port:      "2222",
+			},
+			found: true,
+		},
+		{
+			name:  "Outbound LAN with MAC suffix and port greedy check",
+			input: "eno1|>...3e:8e:2222",
+			expected: &Token{
+				FullMatch: "eno1|>...3e:8e:2222",
+				Interface: "eno1",
+				Direction: ">",
+				Dots:      3,
+				HostPart:  "3e:8e",
+				Port:      "2222",
+			},
+			found: true,
+		},
+		{
 			name:     "Invalid syntax",
 			input:    "invalid_token_pattern",
 			expected: nil,

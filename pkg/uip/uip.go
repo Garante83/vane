@@ -37,13 +37,36 @@ func ExtractToken(input string) (*Token, bool) {
 	if len(matches) == 0 {
 		return nil, false
 	}
+
+	hostPart := matches[4]
+	port := matches[5]
+
+	// Greedy Regex Correction: If the port group is empty, check if the greedy HostPart matching group
+	// consumed the trailing ':port' (e.g. "33:2222" or "3e:8e:2222").
+	if port == "" {
+		if idx := strings.LastIndex(hostPart, ":"); idx != -1 {
+			portCandidate := hostPart[idx+1:]
+			isPort := true
+			for _, c := range portCandidate {
+				if c < '0' || c > '9' {
+					isPort = false
+					break
+				}
+			}
+			if isPort && len(portCandidate) > 0 && idx > 0 {
+				hostPart = hostPart[:idx]
+				port = portCandidate
+			}
+		}
+	}
+
 	return &Token{
 		FullMatch: matches[0],
 		Interface: strings.TrimSpace(matches[1]),
 		Direction: matches[2],
 		Dots:      len(matches[3]),
-		HostPart:  matches[4],
-		Port:      matches[5],
+		HostPart:  hostPart,
+		Port:      port,
 	}, true
 }
 
