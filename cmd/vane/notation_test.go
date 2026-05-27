@@ -4,7 +4,7 @@ import (
 	"net"
 	"testing"
 	"vane/pkg/netstate"
-	"vane/pkg/parser"
+	"vane/pkg/uip"
 )
 
 // TestResolveTokenIP_Success runs a comprehensive suite of table-driven tests checking
@@ -12,13 +12,13 @@ import (
 func TestResolveTokenIP_Success(t *testing.T) {
 	tests := []struct {
 		name       string
-		token      parser.Token
+		token      uip.Token
 		state      netstate.State
 		expectedIP string
 	}{
 		{
 			name: "IPv4 local segment replacement (3 dots)",
-			token: parser.Token{
+			token: uip.Token{
 				Direction: ">",
 				Dots:      3,
 				HostPart:  "33",
@@ -30,7 +30,7 @@ func TestResolveTokenIP_Success(t *testing.T) {
 		},
 		{
 			name: "IPv4 local multi-segment replacement (2 dots)",
-			token: parser.Token{
+			token: uip.Token{
 				Direction: ">",
 				Dots:      2,
 				HostPart:  "100.33",
@@ -42,7 +42,7 @@ func TestResolveTokenIP_Success(t *testing.T) {
 		},
 		{
 			name: "IPv6 ULA segment replacement",
-			token: parser.Token{
+			token: uip.Token{
 				Direction: ">",
 				Dots:      3,
 				HostPart:  "33",
@@ -54,7 +54,7 @@ func TestResolveTokenIP_Success(t *testing.T) {
 		},
 		{
 			name: "Loopback IPv4 mapping",
-			token: parser.Token{
+			token: uip.Token{
 				Direction: ":",
 				Dots:      3,
 				HostPart:  "254",
@@ -66,7 +66,7 @@ func TestResolveTokenIP_Success(t *testing.T) {
 		},
 		{
 			name: "Loopback IPv6 mapping",
-			token: parser.Token{
+			token: uip.Token{
 				Direction: ":",
 				HostPart:  "1",
 			},
@@ -75,7 +75,7 @@ func TestResolveTokenIP_Success(t *testing.T) {
 		},
 		{
 			name: "APIPA Emergency mapping (APIPA active)",
-			token: parser.Token{
+			token: uip.Token{
 				Direction: "!",
 				Dots:      3,
 				HostPart:  "34",
@@ -88,7 +88,7 @@ func TestResolveTokenIP_Success(t *testing.T) {
 		},
 		{
 			name: "APIPA Emergency mapping (APIPA not active)",
-			token: parser.Token{
+			token: uip.Token{
 				Direction: "!",
 				Dots:      3,
 				HostPart:  "34",
@@ -101,7 +101,7 @@ func TestResolveTokenIP_Success(t *testing.T) {
 		},
 		{
 			name: "Local Hardware Address EUI-64 Matching under LAN",
-			token: parser.Token{
+			token: uip.Token{
 				Direction: ">",
 				Dots:      3,
 				HostPart:  "3e8e",
@@ -116,7 +116,10 @@ func TestResolveTokenIP_Success(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res := resolveTokenIP(&tt.token, &tt.state)
+			res, err := uip.ResolveTokenIP(&tt.token, &tt.state)
+			if err != nil {
+				t.Fatalf("unexpected error resolving token: %v", err)
+			}
 			if res != tt.expectedIP {
 				t.Errorf("expected %q, got %q", tt.expectedIP, res)
 			}

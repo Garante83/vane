@@ -3,6 +3,7 @@ package main
 import (
 	"net"
 	"testing"
+	"vane/pkg/uip"
 )
 
 func TestComputeEUI64(t *testing.T) {
@@ -11,7 +12,7 @@ func TestComputeEUI64(t *testing.T) {
 		t.Fatalf("failed to parse MAC: %v", err)
 	}
 
-	eui := computeEUI64(mac)
+	eui := uip.ComputeEUI64(mac)
 	if eui != "0215:5dff:fe01:0203" {
 		t.Errorf("expected 0215:5dff:fe01:0203, got %q", eui)
 	}
@@ -19,7 +20,7 @@ func TestComputeEUI64(t *testing.T) {
 
 func TestGetPrefix64(t *testing.T) {
 	ip := net.ParseIP("2001:db8:a::1")
-	prefix := getPrefix64(ip, "fallback:")
+	prefix := uip.GetPrefix64(ip, "fallback:")
 	if prefix != "2001:db8:a::" {
 		t.Errorf("expected 2001:db8:a::, got %q", prefix)
 	}
@@ -27,7 +28,7 @@ func TestGetPrefix64(t *testing.T) {
 
 func TestResolveIPv4Dots(t *testing.T) {
 	ip := net.ParseIP("192.168.1.50")
-	res := resolveIPv4Dots(ip, 3, "99")
+	res := uip.ResolveIPv4Dots(ip, 3, "99")
 	if res != "192.168.1.99" {
 		t.Errorf("expected 192.168.1.99, got %q", res)
 	}
