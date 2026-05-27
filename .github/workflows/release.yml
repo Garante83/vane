@@ -27,23 +27,23 @@ jobs:
           mkdir -p build
           
           # 1. Linux amd64
-          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o build/vane-linux-amd64 cmd/vane/main.go
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o build/vane-linux-amd64 ./cmd/vane
           tar -czf build/vane-linux-amd64.tar.gz -C build vane-linux-amd64
           
           # 2. Linux arm64
-          GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w" -o build/vane-linux-arm64 cmd/vane/main.go
+          GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w" -o build/vane-linux-arm64 ./cmd/vane
           tar -czf build/vane-linux-arm64.tar.gz -C build vane-linux-arm64
           
           # 3. macOS amd64 (Intel)
-          GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o build/vane-darwin-amd64 cmd/vane/main.go
+          GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o build/vane-darwin-amd64 ./cmd/vane
           tar -czf build/vane-darwin-amd64.tar.gz -C build vane-darwin-amd64
           
           # 4. macOS arm64 (Apple Silicon)
-          GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w" -o build/vane-darwin-arm64 cmd/vane/main.go
+          GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w" -o build/vane-darwin-arm64 ./cmd/vane
           tar -czf build/vane-darwin-arm64.tar.gz -C build vane-darwin-arm64
           
           # 5. Windows amd64
-          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o build/vane-windows-amd64.exe cmd/vane/main.go
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o build/vane-windows-amd64.exe ./cmd/vane
           zip -j build/vane-windows-amd64.zip build/vane-windows-amd64.exe
 
       - name: Create Release
