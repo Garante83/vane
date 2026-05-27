@@ -1011,7 +1011,7 @@ func resolveTokenIP(targetToken *parser.Token, state *netstate.State) string {
 func handleAutocomplete(words []string) {
 	if len(words) <= 1 {
 		// Suggest main commands
-		fmt.Println("ping scan trace sniff send recv doc man help")
+		fmt.Println("scan trace sniff send recv doc man help")
 		return
 	}
 
@@ -1019,12 +1019,12 @@ func handleAutocomplete(words []string) {
 
 	// If we are at the second word (e.g. vane p[Tab])
 	if len(words) == 2 {
-		fmt.Println("ping scan trace sniff send recv doc man help")
+		fmt.Println("scan trace sniff send recv doc man help")
 		return
 	}
 
 	// Dynamic suggestions for commands that take an interface or target
-	if subCmd == "ping" || subCmd == "scan" || subCmd == "trace" || subCmd == "sniff" || subCmd == "check" {
+	if subCmd == "ping" || subCmd == "ssh" || subCmd == "scp" || subCmd == "curl" || subCmd == "scan" || subCmd == "trace" || subCmd == "sniff" || subCmd == "check" {
 		// Only suggest on the first argument after the command (e.g., vane ping [Tab])
 		if len(words) == 3 {
 			var suggestions []string
