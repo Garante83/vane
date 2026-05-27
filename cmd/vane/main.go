@@ -855,29 +855,127 @@ func resolveTokenIP(targetToken *parser.Token, state *netstate.State) string {
 
 	// Direct parsing logic based on direction modifier
 	switch targetToken.Direction {
-	case ">": // Outbound LAN (IPv4)
-		if state.IPv4Local == nil {
-			fmt.Fprintf(os.Stderr, msg.ErrorNoIPv4, targetToken.Interface)
-			os.Exit(1)
+	case ">": // Outbound LAN (Dual-Stack: IPv6 ULA first, fallback to IPv4)
+		useIPv6 := false
+		if state.IPv6ULA != nil {
+			useIPv6 = true
 		}
 
-		// Passive APIPA validation check to catch DHCP lease errors early
-		if state.IsAPIPA {
-			fmt.Fprintf(os.Stderr, msg.ApipaDetected, targetToken.Interface)
-			os.Exit(1)
-		}
+		if useIPv6 {
+			// Resolve using IPv6 ULA
+			if targetToken.HostPart == "gw" || targetToken.HostPart == "router" {
+				gw, err := getIPv6DefaultGateway(state.InterfaceName)
+				if err == nil && gw != "" {
+					targetIP = gw
+				} else {
+					// Fallback to IPv4 gateway if IPv6 gateway isn't found
+					if state.IPv4Local != nil {
+						gwV4, errV4 := getDefaultGateway(state.InterfaceName)
+						if errV4 == nil && gwV4 != "" {
+							targetIP = gwV4
+						} else {
+							fmt.Fprintf(os.Stderr, msg.ErrorGateway, state.InterfaceName, err)
+							os.Exit(1)
+						}
+					} else {
+						fmt.Fprintf(os.Stderr, msg.ErrorGateway, state.InterfaceName, err)
+						os.Exit(1)
+					}
+				}
+			} else {
+				// Replace the last group of the ULA address with HostPart
+				targetIP = resolveIPv6ULA(state.IPv6ULA, targetToken.HostPart)
+			}
+		} else {
+			// Fallback to IPv4
+			if state.IPv4Local == nil {
+				// Final extreme fallback: if IPv6 GUA is active, try it as a last resort
+				if state.IPv6Global != nil {
+					if targetToken.HostPart == "gw" || targetToken.HostPart == "router" {
+						gw, err := getIPv6DefaultGateway(state.InterfaceName)
+						if err == nil && gw != "" {
+							targetIP = gw
+							break
+						}
+					}
+					targetIP = resolveIPv6ULA(state.IPv6Global, targetToken.HostPart)
+					break
+				}
 
-		// Dynamic gateway resolution for 'gw' or 'router' keywords
-		if targetToken.HostPart == "gw" || targetToken.HostPart == "router" {
-			gw, err := getDefaultGateway(state.InterfaceName)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, msg.ErrorGateway, state.InterfaceName, err)
+				fmt.Fprintf(os.Stderr, msg.ErrorNoIPv4, targetToken.Interface)
 				os.Exit(1)
 			}
-			targetIP = gw
-		} else {
-			// Check if HostPart is a MAC/EUI-64 suffix (contains non-digits or has a length of 4 or more)
-			isHex := false
+
+			// Passive APIPA validation check to catch DHCP lease errors early
+			if state.IsAPIPA {
+				fmt.Fprintf(os.Stderr, msg.ApipaDetected, targetToken.Interface)
+				os.Exit(1)
+			}
+
+			// Dynamic gateway resolution for 'gw' or 'router' keywords
+			if targetToken.HostPart == "gw" || targetToken.HostPart == "router" {
+				gw, err := getDefaultGateway(state.InterfaceName)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, msg.ErrorGateway, state.InterfaceName, err)
+					os.Exit(1)
+				}
+				targetIP = gw
+			} else {
+				// Check if HostPart is a MAC/EUI-64 suffix (contains non-digits or has a length of 4 or more)
+				isHex := false
+				for _, c := range targetToken.HostPart {
+					if (c < '0' || c > '9') && c != '.' {
+						isHex = true
+						break
+					}
+				}
+				if len(targetToken.HostPart) >= 4 && !strings.Contains(targetToken.HostPart, ".") {
+					isHex = true
+				}
+				if !isHex && !strings.Contains(targetToken.HostPart, ".") {
+					if num, err := strconv.Atoi(targetToken.HostPart); err == nil && num > 255 {
+						isHex = true
+					}
+				}
+
+				if isHex {
+					// Check local interface MAC first
+					eui64 := ""
+					if len(state.HardwareAddr) == 6 {
+						eui64 = computeEUI64(state.HardwareAddr)
+					}
+					valClean := strings.ToLower(strings.ReplaceAll(targetToken.HostPart, ":", ""))
+					euiClean := strings.ToLower(strings.ReplaceAll(eui64, ":", ""))
+
+					matched := false
+					if euiClean != "" && valClean != "" {
+						if strings.HasSuffix(euiClean, valClean) || strings.Contains(euiClean, valClean) {
+							matched = true
+						}
+					}
+
+					if matched {
+						targetIP = state.IPv4Local.String()
+					} else {
+						// True subnet resolution: scan kernel ARP table to resolve remote IP!
+						resolvedIP, err := resolveRemoteIPFromARP(state.InterfaceName, targetToken.HostPart)
+						if err == nil && resolvedIP != "" {
+							targetIP = resolvedIP
+						} else {
+							fmt.Fprintf(os.Stderr, msg.ErrorMACMismatch, targetToken.HostPart, state.InterfaceName)
+							os.Exit(1)
+						}
+					}
+				} else {
+					targetIP = resolveIPv4Dots(state.IPv4Local, targetToken.Dots, targetToken.HostPart)
+				}
+			}
+		}
+
+	case "<": // External WAN (IPv6) or Subnet MAC-Matching (ARP)
+		// Check if HostPart is a MAC suffix (contains hex characters or has a length of 4 or more)
+		isHex := false
+		if targetToken.HostPart != "" {
 			for _, c := range targetToken.HostPart {
 				if (c < '0' || c > '9') && c != '.' {
 					isHex = true
@@ -892,40 +990,51 @@ func resolveTokenIP(targetToken *parser.Token, state *netstate.State) string {
 					isHex = true
 				}
 			}
+		}
 
-			if isHex {
-				eui64 := ""
-				if len(state.HardwareAddr) == 6 {
-					eui64 = computeEUI64(state.HardwareAddr)
+		if isHex {
+			// Perform MAC/ARP resolution in the subnet
+			eui64 := ""
+			if len(state.HardwareAddr) == 6 {
+				eui64 = computeEUI64(state.HardwareAddr)
+			}
+			valClean := strings.ToLower(strings.ReplaceAll(targetToken.HostPart, ":", ""))
+			euiClean := strings.ToLower(strings.ReplaceAll(eui64, ":", ""))
+
+			matched := false
+			if euiClean != "" && valClean != "" {
+				if strings.HasSuffix(euiClean, valClean) || strings.Contains(euiClean, valClean) {
+					matched = true
 				}
-				valClean := strings.ToLower(strings.ReplaceAll(targetToken.HostPart, ":", ""))
-				euiClean := strings.ToLower(strings.ReplaceAll(eui64, ":", ""))
+			}
 
-				matched := false
-				if euiClean != "" && valClean != "" {
-					if strings.HasSuffix(euiClean, valClean) || strings.Contains(euiClean, valClean) {
-						matched = true
-					}
-				}
-
-				if matched {
+			if matched {
+				if state.IPv4Local != nil {
 					targetIP = state.IPv4Local.String()
+				} else if state.IPv6Global != nil {
+					targetIP = state.IPv6Global.String()
 				} else {
-					fmt.Fprintf(os.Stderr, msg.ErrorMACMismatch, targetToken.HostPart, targetToken.Interface)
+					fmt.Fprintf(os.Stderr, msg.ErrorMACMismatch, targetToken.HostPart, state.InterfaceName)
 					os.Exit(1)
 				}
 			} else {
-				targetIP = resolveIPv4Dots(state.IPv4Local, targetToken.Dots, targetToken.HostPart)
+				// True dynamic subnet scanning: query kernel ARP table!
+				resolvedIP, err := resolveRemoteIPFromARP(state.InterfaceName, targetToken.HostPart)
+				if err == nil && resolvedIP != "" {
+					targetIP = resolvedIP
+				} else {
+					fmt.Fprintf(os.Stderr, msg.ErrorMACMismatch, targetToken.HostPart, state.InterfaceName)
+					os.Exit(1)
+				}
 			}
+		} else {
+			// Normal IPv6 WAN resolution
+			if state.IPv6Global == nil {
+				fmt.Fprintf(os.Stderr, msg.ErrorNoIPv6, targetToken.Interface)
+				os.Exit(1)
+			}
+			targetIP = resolveIPv6WAN(state.IPv6Global, targetToken.HostPart, state.HardwareAddr)
 		}
-
-	case "<": // External WAN (IPv6)
-		if state.IPv6Global == nil {
-			fmt.Fprintf(os.Stderr, msg.ErrorNoIPv6, targetToken.Interface)
-			os.Exit(1)
-		}
-
-		targetIP = resolveIPv6WAN(state.IPv6Global, targetToken.HostPart, state.HardwareAddr)
 
 	case ":": // Loopback (lo)
 		if targetToken.HostPart == "1" {
@@ -1076,4 +1185,152 @@ elif [ -n "$ZSH_VERSION" ]; then
 fi
 `
 	fmt.Print(script)
+}
+
+// getIPv6DefaultGateway retrieves the active IPv6 default gateway for an interface
+func getIPv6DefaultGateway(ifaceName string) (string, error) {
+	if runtime.GOOS == "windows" {
+		cmd := exec.Command("powershell", "-NoProfile", "-Command",
+			fmt.Sprintf("Get-NetRoute -InterfaceAlias '%s' -AddressFamily IPv6 -DestinationPrefix '::/0' | Select-Object -ExpandProperty NextHop", ifaceName))
+		out, err := cmd.Output()
+		if err == nil && len(strings.TrimSpace(string(out))) > 0 {
+			return strings.TrimSpace(string(out)), nil
+		}
+		return "", fmt.Errorf("no ipv6 default gateway found on %s", ifaceName)
+	}
+
+	data, err := os.ReadFile("/proc/net/ipv6_route")
+	if err != nil {
+		return "", err
+	}
+
+	lines := strings.Split(string(data), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 10 {
+			continue
+		}
+		destHex := fields[0]
+		gwHex := fields[4]
+		dev := fields[9]
+
+		// destHex == "00000000000000000000000000000000" means default route (::/0)
+		if dev == ifaceName && destHex == "00000000000000000000000000000000" {
+			if gwHex == "00000000000000000000000000000000" {
+				continue
+			}
+			ip, err := parseIPv6Hex(gwHex)
+			if err == nil {
+				return ip, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("no ipv6 default route found on %s", ifaceName)
+}
+
+// parseIPv6Hex converts standard 32-character hexadecimal IPv6 routing entries into colon-separated notation
+func parseIPv6Hex(hexStr string) (string, error) {
+	if len(hexStr) != 32 {
+		return "", fmt.Errorf("invalid ipv6 hex length")
+	}
+	var parts []string
+	for i := 0; i < 32; i += 4 {
+		part := hexStr[i : i+4]
+		trimmed := strings.TrimLeft(part, "0")
+		if trimmed == "" {
+			trimmed = "0"
+		}
+		parts = append(parts, trimmed)
+	}
+	ipStr := strings.Join(parts, ":")
+	parsedIP := net.ParseIP(ipStr)
+	if parsedIP != nil {
+		return parsedIP.String(), nil
+	}
+	return ipStr, nil
+}
+
+// resolveIPv6ULA replaces the final hex segment group of an IPv6 Unique Local Address
+func resolveIPv6ULA(ula net.IP, hostPart string) string {
+	ipBytes := ula.To16()
+	if ipBytes == nil {
+		return ula.String()
+	}
+
+	cleanHex := strings.ReplaceAll(hostPart, ":", "")
+	val, err := strconv.ParseUint(cleanHex, 16, 64)
+	if err == nil {
+		if len(cleanHex) <= 4 {
+			ipBytes[14] = byte(val >> 8)
+			ipBytes[15] = byte(val)
+		} else {
+			ipBytes[12] = byte(val >> 24)
+			ipBytes[13] = byte(val >> 16)
+			ipBytes[14] = byte(val >> 8)
+			ipBytes[15] = byte(val)
+		}
+		return net.IP(ipBytes).String()
+	}
+	return ula.String()
+}
+
+// resolveRemoteIPFromARP reads the dynamic system ARP table cache to map MAC hex suffixes to local subnet IPs
+func resolveRemoteIPFromARP(ifaceName, suffix string) (string, error) {
+	if runtime.GOOS == "windows" {
+		cmd := exec.Command("powershell", "-NoProfile", "-Command",
+			fmt.Sprintf("Get-NetNeighbor -InterfaceAlias '%s' | Select-Object IPAddress, LinkLayerAddress", ifaceName))
+		out, err := cmd.Output()
+		if err == nil {
+			lines := strings.Split(string(out), "\n")
+			for _, line := range lines {
+				line = strings.TrimSpace(line)
+				if line == "" {
+					continue
+				}
+				fields := strings.Fields(line)
+				if len(fields) >= 2 {
+					ip := fields[0]
+					mac := strings.ToLower(strings.ReplaceAll(fields[1], "-", ""))
+					cleanSuffix := strings.ToLower(strings.ReplaceAll(suffix, ":", ""))
+					if strings.HasSuffix(mac, cleanSuffix) || strings.Contains(mac, cleanSuffix) {
+						return ip, nil
+					}
+				}
+			}
+		}
+		return "", fmt.Errorf("MAC suffix not found in Windows ARP neighbor cache")
+	}
+
+	data, err := os.ReadFile("/proc/net/arp")
+	if err != nil {
+		return "", err
+	}
+
+	cleanSuffix := strings.ToLower(strings.ReplaceAll(suffix, ":", ""))
+	lines := strings.Split(string(data), "\n")
+	for i := 1; i < len(lines); i++ {
+		line := strings.TrimSpace(lines[i])
+		if line == "" {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 6 {
+			continue
+		}
+		ip := fields[0]
+		mac := strings.ToLower(strings.ReplaceAll(fields[3], ":", ""))
+		dev := fields[5]
+
+		if dev == ifaceName {
+			if strings.HasSuffix(mac, cleanSuffix) || strings.Contains(mac, cleanSuffix) {
+				return ip, nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("MAC suffix '%s' not found in ARP cache for %s", suffix, ifaceName)
 }
