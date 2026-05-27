@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"vane/pkg/doc"
 	"vane/pkg/netstate"
 	"vane/pkg/parser"
 	"vane/pkg/peeker"
@@ -37,6 +38,7 @@ type Translation struct {
 	HelpSend         string
 	HelpRecv         string
 	HelpSniff        string
+	HelpManual       string
 	HelpMatrix       string
 	ConvertULA       string
 	ConvertIPv4Equiv string
@@ -63,6 +65,7 @@ var de = Translation{
 	HelpSend:         "  vane send <datei> --code <code> Sendet eine Datei hochperformant & verschlüsselt an einen Peer.",
 	HelpRecv:         "  vane recv [--port <port>]       Empfängt eine Datei hochperformant & verschlüsselt.",
 	HelpSniff:        "  vane sniff [interface]          Liest HTTP & DNS Anfragen auf dem Interface live mit.",
+	HelpManual:       "  vane doc / man                  Öffnet das interaktive TUI-Handbuch (System-Dokumentation).",
 	HelpMatrix:       "  vane                            Zeigt die Local Network Interface Matrix.",
 	ConvertULA:       "-> ULA (Intern):  %s%s\n",
 	ConvertIPv4Equiv: "-> IPv4-Äquivalent: %s\n",
@@ -89,6 +92,7 @@ var en = Translation{
 	HelpSend:         "  vane send <file> --code <code>   Sends a file with high performance & encryption to a peer.",
 	HelpRecv:         "  vane recv [--port <port>]        Receives a file with high performance & encryption.",
 	HelpSniff:        "  vane sniff [interface]           Sniffs live HTTP & DNS requests on the interface.",
+	HelpManual:       "  vane doc / man                  Opens the interactive TUI manual (system documentation).",
 	HelpMatrix:       "  vane                             Shows the Local Network Interface Matrix.",
 	ConvertULA:       "-> ULA (Internal): %s%s\n",
 	ConvertIPv4Equiv: "-> IPv4 Equivalent: %s\n",
@@ -134,7 +138,14 @@ func main() {
 		fmt.Println(msg.HelpSend)
 		fmt.Println(msg.HelpRecv)
 		fmt.Println(msg.HelpSniff)
+		fmt.Println(msg.HelpManual)
 		fmt.Println(msg.HelpMatrix)
+		os.Exit(0)
+	}
+
+	// 1.5 Interactive Manual Mode (vane doc / man / --manual / -m)
+	if len(os.Args) == 2 && (os.Args[1] == "doc" || os.Args[1] == "man" || os.Args[1] == "-m" || os.Args[1] == "--manual") {
+		doc.ShowManual(getSystemLanguage())
 		os.Exit(0)
 	}
 
