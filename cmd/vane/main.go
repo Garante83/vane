@@ -100,12 +100,13 @@ var en = Translation{
 	ErrorMACMismatch: "[vane] Error: MAC suffix '%s' does not match interface %s.\n",
 }
 
-var msg = de
+var msg = en
 
 func main() {
-	// Dynamically detect system language for internationalization
-	if getSystemLanguage() == "en" {
-		msg = en
+	// Dynamically detect system language for internationalization.
+	// If German is detected, switch to German translations.
+	if getSystemLanguage() == "de" {
+		msg = de
 	}
 
 	// 1. Matrix Report: If no arguments are passed, print the network interface matrix
