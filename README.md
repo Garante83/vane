@@ -11,6 +11,10 @@
 
 Rather than acting as a disjoint set of separate diagnostic tools, **vane** centers its built-in subcommands around the **Vane Notation**, allowing you to discover, profile, and interact with Vane tokens efficiently.
 
+<p align="center">
+  <img src="assets/vane-demo.gif" alt="vane SSH & Port-Mapping Demo" width="650">
+</p>
+
 ---
 
 ## 1. Core Concept: The Vane Notation & Proxy Wrapper
