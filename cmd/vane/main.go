@@ -146,7 +146,7 @@ func main() {
 	}
 
 	// Help screen
-	if len(os.Args) == 2 && (os.Args[1] == "-h" || os.Args[1] == "--help") {
+	if len(os.Args) == 2 && (os.Args[1] == "-h" || os.Args[1] == "--help" || os.Args[1] == "help") {
 		fmt.Println(msg.HelpTitle)
 		fmt.Println(msg.HelpUsageHeader)
 		fmt.Println(msg.HelpExecCommand)
