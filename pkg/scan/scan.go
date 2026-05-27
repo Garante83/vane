@@ -154,16 +154,9 @@ func PerformScan(ifaceName string) error {
 			status = "[ GW ]"
 		}
 
-		// Pad raw status to exactly 8 characters first, then apply color
+		// Pad raw status to exactly 8 characters first, then color it Green (\x1b[1;32m) to represent "UP / Active" status consistently across all tools
 		statusPadded := fmt.Sprintf("%-8s", status)
-		var statusColored string
-		if host.IP == localIP.IP.String() {
-			statusColored = "\x1b[1;34m" + statusPadded + "\x1b[0m" // Blue for LOCAL
-		} else if host.IP == gatewayIP {
-			statusColored = "\x1b[1;36m" + statusPadded + "\x1b[0m" // Cyan for GW
-		} else {
-			statusColored = "\x1b[1;32m" + statusPadded + "\x1b[0m" // Green for UP
-		}
+		statusColored := "\x1b[1;32m" + statusPadded + "\x1b[0m"
 
 		// Format open ports elegantly with a strict truncation limit of 2 to preserve columns
 		portsStr := formatPorts(host.OpenPorts)
