@@ -240,6 +240,15 @@ func ResolveTokenIP(targetToken *Token, state *netstate.State) (string, error) {
 		} else {
 			parts := []string{"169", "254", "0", targetToken.HostPart}
 			targetIP = strings.Join(parts, ".")
+
+			// Proactive Admin Helper: Warn that local interface is NOT on APIPA!
+			fmt.Fprintf(os.Stderr, "\n[!] Warning: Target resolves to APIPA IP (%s), but interface %s has no active APIPA lease.\n", targetIP, state.InterfaceName)
+			fmt.Fprintf(os.Stderr, "[!] To enable communication on this segment, run:\n")
+			if runtime.GOOS == "windows" {
+				fmt.Fprintf(os.Stderr, "    New-NetIPAddress -InterfaceAlias '%s' -IPAddress 169.254.99.99 -PrefixLength 16\n\n", state.InterfaceName)
+			} else {
+				fmt.Fprintf(os.Stderr, "    sudo ip addr add 169.254.99.99/16 dev %s\n\n", state.InterfaceName)
+			}
 		}
 
 	default:
