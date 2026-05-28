@@ -1,6 +1,6 @@
-# Universal IP (UIP) & Vane Notation
+# Unified IP Notation (UIP) & Vane Notation
 
-The Universal IP (UIP) parser is one of Vane's most innovative features. It allows system administrators and homelab enthusiasts to reference network hosts using dynamic, shorthand tokens instead of static, hard-to-remember IPv4 or IPv6 addresses. 
+The Unified IP (UIP) parser is one of Vane's most innovative features. It allows system administrators and homelab enthusiasts to reference network hosts using dynamic, shorthand tokens instead of static, hard-to-remember IPv4 or IPv6 addresses. 
 
 This guide explains the syntax, underlying mathematics, and EUI-64 autoconfiguration rules that drive the UIP engine.
 
