@@ -24,6 +24,15 @@ Vane operates in **100% Passive Mode**. In this state, the utility sends **zero 
 
 This approach ensures zero overhead, making Vane completely invisible to any network monitoring systems while gathering immediate local intelligence.
 
+> [!IMPORTANT]
+> **Limitations of Purely Passive Resolution:**
+> Because passive mode is 100% silent and sends zero network packets, it cannot scan ports or peek payloads. Consequently, software-based services running on general-purpose hardware (such as Proxmox VE, Open WebUI, Paperless-ngx, or Nextcloud) **will not be detected** in passive mode on a fresh installation *unless*:
+> 1. They successfully announce themselves via mDNS and your host OS resolver caches them (e.g. resolving `proxmox.local`).
+> 2. Or they are loaded from Vane's local cache (`cache.json`) after you have consciously run an active sweep (`vane discover -w -p`) with the persistent flag at least once to populate your environment.
+>
+> **Conscious Control & Workflow:**
+> Vane respects your network integrity. Passive mode (`vane discover`) only reads what is already known to the OS or manually cached. Active sweeps (`-w`) and single scans (`-s`) must be **consciously started** by you, and their results are only saved to the disk if you explicitly request it using the persistent flag (`-p`).
+
 ---
 
 ## 2. Active Verification: Targeted Known-Host Peeking

@@ -938,7 +938,7 @@ func handleDiscoverSubcommand(ifaceName string, persistent, sweepFlag, clearFlag
 			coloredNotation := getColoredSyntax(ifaceName, ">", lastOctet)
 			combinedNotation := fmt.Sprintf("%s / ...%s", coloredNotation, tok)
 
-			// Save if this is an active discovery, persistent flag is set, or cache file already exists!
+			// Save if persistent flag is set, OR if the cache file already exists!
 			cachePath, errPath := vssd.GetCachePath()
 			cacheExists := false
 			if errPath == nil {
@@ -947,7 +947,7 @@ func handleDiscoverSubcommand(ifaceName string, persistent, sweepFlag, clearFlag
 				}
 			}
 
-			if sweepFlag || targetIP != "" || persistent || cacheExists {
+			if persistent || cacheExists {
 				_ = vssd.UpdateCache(ifaceName, tok, entry)
 			}
 
