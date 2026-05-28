@@ -16,7 +16,7 @@ import (
 	"vane/pkg/uip"
 )
 
-// ServiceSignature defines target fingerprints for specific home-server services.
+// ServiceSignature defines target fingerprints for specific home-server and enterprise services.
 type ServiceSignature struct {
 	Token          string
 	Ports          []int
@@ -47,6 +47,35 @@ var Signatures = []ServiceSignature{
 		Token:     "hass",
 		Ports:     []int{8123},
 		MDNSNames: []string{"homeassistant", "hass"},
+	},
+	// Enterprise-typical database and infrastructure services
+	{
+		Token: "pgs",
+		Ports: []int{5432},
+	},
+	{
+		Token: "mys",
+		Ports: []int{3306},
+	},
+	{
+		Token: "rds",
+		Ports: []int{6379},
+	},
+	{
+		Token: "mgo",
+		Ports: []int{27017},
+	},
+	{
+		Token: "els",
+		Ports: []int{9200},
+	},
+	{
+		Token: "k8s",
+		Ports: []int{6443},
+	},
+	{
+		Token: "dck",
+		Ports: []int{2375, 2376},
 	},
 }
 
@@ -102,7 +131,7 @@ func LookupMDNSOSResolver(token string) (string, string, bool) {
 
 // DiscoverService is the primary entry point for resolving a semantic service IP.
 // By default, it uses standard OS lookups (passive/zero-footprint).
-// If active is true, it performs an on-demand subnet sweep.
+// If active is true, it performs an on-demand targeted verification scan (no sweeps).
 func DiscoverService(ifaceName, token string, active bool) (string, error) {
 	// 1. Try Cache first
 	if ip, found := ResolveFromCache(ifaceName, token); found {
@@ -114,9 +143,9 @@ func DiscoverService(ifaceName, token string, active bool) (string, error) {
 		return v4, nil
 	}
 
-	// 3. Active Subnet Sweep (Only if explicitly enabled or requested)
+	// 3. Active Targeted verification (Only if explicitly enabled or requested, NO subnet sweeps)
 	if active {
-		results, err := RunSubnetDiscovery(ifaceName)
+		results, err := RunTargetedDiscovery(ifaceName)
 		if err == nil {
 			if entry, found := results[token]; found {
 				_ = UpdateCache(ifaceName, token, entry)
@@ -128,139 +157,130 @@ func DiscoverService(ifaceName, token string, active bool) (string, error) {
 	return "", fmt.Errorf("service token '%s' could not be resolved on interface %s", token, ifaceName)
 }
 
-// RunSubnetDiscovery sweeps the local subnet of the interface for known service signatures.
-func RunSubnetDiscovery(ifaceName string) (map[string]CacheEntry, error) {
-	iface, err := net.InterfaceByName(ifaceName)
-	if err != nil {
-		return nil, err
-	}
+// RunTargetedDiscovery performs precise, non-aggressive service signature peeking
+// strictly limited to:
+// 1) Hosts currently present in the system's passive neighbor (ARP) cache.
+// 2) Hosts manually registered by the user in their Vane service cache.
+func RunTargetedDiscovery(ifaceName string) (map[string]CacheEntry, error) {
+	// A. Get local interface and passive ARP neighbors
+	arpMap := parseARPCache(ifaceName)
 
-	addrs, err := iface.Addrs()
-	if err != nil {
-		return nil, err
-	}
-
-	var localIPNet *net.IPNet
-	for _, addr := range addrs {
-		ipNet, ok := addr.(*net.IPNet)
-		if ok && ipNet.IP.To4() != nil {
-			localIPNet = ipNet
-			break
+	// B. Also collect manually registered hosts from the local Vane cache
+	manualIPs := make(map[string]bool)
+	cacheMap, err := LoadCacheForInterface(ifaceName)
+	if err == nil {
+		for _, entry := range cacheMap {
+			if entry.IP != "" {
+				manualIPs[entry.IP] = true
+			}
 		}
 	}
 
-	if localIPNet == nil {
-		return nil, fmt.Errorf("no IPv4 address configured on %s", ifaceName)
+	// C. Combine all safe target IPs (no blind range sweeps!)
+	targets := make(map[string]string) // IP -> MAC
+	for ip, mac := range arpMap {
+		targets[ip] = mac
+	}
+	for ip := range manualIPs {
+		if _, exists := targets[ip]; !exists {
+			targets[ip] = "" // No MAC known yet
+		}
 	}
 
-	ips := getSubnetIPs(localIPNet)
-	arpMap := parseARPCache(ifaceName)
 	results := make(map[string]CacheEntry)
 	var mu sync.Mutex
-
-	// Spin up worker pool for rapid concurrent port peeking (100ms timeout per host)
 	var wg sync.WaitGroup
-	ipsChan := make(chan string, len(ips))
-	numWorkers := 50
 
-	for w := 0; w < numWorkers; w++ {
+	// Spin up a small worker pool to verify only these specific active targets
+	for ip, mac := range targets {
 		wg.Add(1)
-		go func() {
+		go func(targetIP, targetMAC string) {
 			defer wg.Done()
-			for ip := range ipsChan {
-				if ip == localIPNet.IP.String() {
-					continue
-				}
 
-				mac := arpMap[ip]
+			// Check our signatures
+			for _, sig := range Signatures {
+				matched := false
+				var openPorts []int
 
-				// Peek ports for all signatures in parallel on this host
-				for _, sig := range Signatures {
-					matched := false
-					var openPorts []int
-
-					// Check MAC OUI matches first (instant)
-					ouiMatched := false
-					if len(sig.MACOUIPrefixes) > 0 && mac != "" {
-						cleanMac := strings.ToLower(strings.ReplaceAll(mac, ":", ""))
-						for _, prefix := range sig.MACOUIPrefixes {
-							cleanPrefix := strings.ToLower(strings.ReplaceAll(prefix, ":", ""))
-							if strings.HasPrefix(cleanMac, cleanPrefix) {
-								ouiMatched = true
-								matched = true
-								break
-							}
+				// 1. Check MAC OUI (instant, silent)
+				ouiMatched := false
+				if len(sig.MACOUIPrefixes) > 0 && targetMAC != "" {
+					cleanMac := strings.ToLower(strings.ReplaceAll(targetMAC, ":", ""))
+					for _, prefix := range sig.MACOUIPrefixes {
+						cleanPrefix := strings.ToLower(strings.ReplaceAll(prefix, ":", ""))
+						if strings.HasPrefix(cleanMac, cleanPrefix) {
+							ouiMatched = true
+							matched = true
+							break
 						}
 					}
+				}
 
-					// Verify active port peeking
-					for _, port := range sig.Ports {
-						if dialHost(ip, port, 100*time.Millisecond) {
-							openPorts = append(openPorts, port)
-							matched = true
+				// 2. Precise Port verification (strictly limited to target)
+				for _, port := range sig.Ports {
+					if dialHost(targetIP, port, 150*time.Millisecond) {
+						openPorts = append(openPorts, port)
+						matched = true
 
-							// HTTP payload peeking for web dashboards
-							if port == 8006 || port == 8123 || port == 80 || port == 443 || port == 5000 || port == 5001 {
-								peekedToken := peekServiceFingerprint(ip, port)
-								if peekedToken != "" {
-									if peekedToken == sig.Token {
-										matched = true
-									} else {
-										// If it matches a different service fingerprint, disqualify this signature matching
-										matched = false
-									}
+						// HTTP payload peeking to verify service
+						if port == 8006 || port == 8123 || port == 80 || port == 443 || port == 5000 || port == 5001 || port == 9200 || port == 6443 || port == 2375 || port == 2376 {
+							peekedToken := peekServiceFingerprint(targetIP, port)
+							if peekedToken != "" {
+								if peekedToken == sig.Token {
+									matched = true
+								} else {
+									matched = false
 								}
 							}
 						}
 					}
+				}
 
-					// Strict gate for "pi" (SSH check on generic Linux VMs is too broad)
-					if sig.Token == "pi" && matched {
-						// Only allow "pi" if hardware OUI matched OR if hostname resolves to pi
-						if !ouiMatched {
-							matched = false
-							// Check if mDNS resolved hostname matches pi/raspberry
-							if pip, _, ok := LookupMDNSOSResolver("pi"); ok && pip == ip {
-								matched = true
-							}
+				// Strict gate for "pi" (SSH check on generic Linux VMs is too broad)
+				if sig.Token == "pi" && matched {
+					if !ouiMatched {
+						matched = false
+						if pip, _, ok := LookupMDNSOSResolver("pi"); ok && pip == targetIP {
+							matched = true
 						}
-					}
-
-					if matched {
-						// Compute Link-Local SLAAC or passive mDNS resolved global IPv6
-						ipv6Str := ""
-						if mac != "" {
-							if hw, err := net.ParseMAC(mac); err == nil && len(hw) == 6 {
-								eui64 := uip.ComputeEUI64(hw)
-								ipv6Str = "fe80::" + eui64
-							}
-						}
-						if _, v6Resolved, ok := LookupMDNSOSResolver(sig.Token); ok && v6Resolved != "" {
-							ipv6Str = v6Resolved
-						}
-
-						mu.Lock()
-						results[sig.Token] = CacheEntry{
-							IP:              ip,
-							IPv6:            ipv6Str,
-							MAC:             mac,
-							Ports:           openPorts,
-							DiscoveryMethod: "active_fingerprint",
-							LastSeen:        time.Now(),
-						}
-						mu.Unlock()
 					}
 				}
+
+				if matched {
+					// SLAAC Link-Local IPv6 computation
+					ipv6Str := ""
+					if targetMAC != "" {
+						if hw, err := net.ParseMAC(targetMAC); err == nil && len(hw) == 6 {
+							eui64 := uip.ComputeEUI64(hw)
+							ipv6Str = "fe80::" + eui64
+						}
+					}
+					if _, v6Resolved, ok := LookupMDNSOSResolver(sig.Token); ok && v6Resolved != "" {
+						ipv6Str = v6Resolved
+					}
+
+					mu.Lock()
+					// Fallback to manual entry name if already present in cache
+					entryName := ""
+					if existing, exists := cacheMap[sig.Token]; exists {
+						entryName = existing.Name
+					}
+					results[sig.Token] = CacheEntry{
+						IP:              targetIP,
+						IPv6:            ipv6Str,
+						MAC:             targetMAC,
+						Name:            entryName,
+						Ports:           openPorts,
+						DiscoveryMethod: "targeted_fingerprint",
+						LastSeen:        time.Now(),
+					}
+					mu.Unlock()
+				}
 			}
-		}()
+		}(ip, mac)
 	}
 
-	for _, ip := range ips {
-		ipsChan <- ip
-	}
-	close(ipsChan)
 	wg.Wait()
-
 	return results, nil
 }
 
@@ -274,37 +294,10 @@ func dialHost(ip string, port int, timeout time.Duration) bool {
 	return false
 }
 
-// getSubnetIPs calculates all IPv4 addresses in a subnet range.
-func getSubnetIPs(ipNet *net.IPNet) []string {
-	var ips []string
-	ip := ipNet.IP.To4()
-	if ip == nil {
-		return nil
-	}
-
-	mask := ipNet.Mask
-	num := uint32(ip[0])<<24 | uint32(ip[1])<<16 | uint32(ip[2])<<8 | uint32(ip[3])
-	maskNum := uint32(mask[0])<<24 | uint32(mask[1])<<16 | uint32(mask[2])<<8 | uint32(mask[3])
-
-	first := num & maskNum
-	last := num | ^maskNum
-
-	// Limit to /24 maximum sweep size to keep discovery ultra fast (<300ms)
-	if last-first > 256 {
-		first = num & 0xFFFFFF00
-		last = num | 0x000000FF
-	}
-
-	for i := first + 1; i < last; i++ {
-		ips = append(ips, fmt.Sprintf("%d.%d.%d.%d", byte(i>>24), byte(i>>16), byte(i>>8), byte(i)))
-	}
-	return ips
-}
-
 // parseARPCache loads system neighbor caches across Linux/macOS and Windows formats.
 func parseARPCache(ifaceName string) map[string]string {
 	arpMap := make(map[string]string)
-	
+
 	// Read standard Linux proc ARP table
 	data, err := os.ReadFile("/proc/net/arp")
 	if err == nil {
@@ -329,9 +322,29 @@ func parseARPCache(ifaceName string) map[string]string {
 	return arpMap
 }
 
-// peekServiceFingerprint makes a fast, insecure-by-design HTTPS/HTTP probe on a target to fingerprint services.
+// peekServiceFingerprint performs targeted payload peeking to verify a service.
 func peekServiceFingerprint(ip string, port int) string {
-	// 150ms timeout is perfect for local network sweeps
+	// A. Check database and special enterprise protocols first
+	switch port {
+	case 6379: // Redis
+		conn, err := net.DialTimeout("tcp", net.JoinHostPort(ip, "6379"), 150*time.Millisecond)
+		if err == nil {
+			defer conn.Close()
+			_, _ = conn.Write([]byte("PING\r\n"))
+			buf := make([]byte, 64)
+			_ = conn.SetReadDeadline(time.Now().Add(150*time.Millisecond))
+			n, err := conn.Read(buf)
+			if err == nil {
+				resp := string(buf[:n])
+				if strings.Contains(resp, "+PONG") || strings.Contains(resp, "NOAUTH") {
+					return "rds"
+				}
+			}
+		}
+		return ""
+	}
+
+	// B. Standard HTTP/HTTPS peeking
 	client := &http.Client{
 		Timeout: 150 * time.Millisecond,
 		Transport: &http.Transport{
@@ -345,21 +358,33 @@ func peekServiceFingerprint(ip string, port int) string {
 		resp, err := client.Get(url)
 		if err == nil {
 			defer resp.Body.Close()
-			
-			// Read first 1024 bytes of the HTML response
 			buf := make([]byte, 1024)
 			n, _ := io.ReadFull(resp.Body, buf)
 			bodyStr := strings.ToLower(string(buf[:n]))
 
-			// Match high-precision signatures in response bodies
+			// 1. Proxmox VE
 			if strings.Contains(bodyStr, "proxmox") || strings.Contains(bodyStr, "pve") {
 				return "pve"
 			}
+			// 2. Home Assistant
 			if strings.Contains(bodyStr, "home assistant") || strings.Contains(bodyStr, "hass") {
 				return "hass"
 			}
+			// 3. Synology / NAS
 			if strings.Contains(bodyStr, "nextcloud") || strings.Contains(bodyStr, "synology") || strings.Contains(bodyStr, "dsm") || strings.Contains(bodyStr, "truenas") {
 				return "nas"
+			}
+			// 4. Elasticsearch
+			if strings.Contains(bodyStr, "you know, for search") {
+				return "els"
+			}
+			// 5. Kubernetes API Server
+			if port == 6443 && (strings.Contains(bodyStr, "forbidden") || strings.Contains(bodyStr, "unauthorized")) {
+				return "k8s"
+			}
+			// 6. Docker API
+			if (port == 2375 || port == 2376) && strings.Contains(bodyStr, "docker") {
+				return "dck"
 			}
 		}
 	}

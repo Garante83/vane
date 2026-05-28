@@ -1,7 +1,6 @@
 package vssd
 
 import (
-	"net"
 	"os"
 	"path/filepath"
 	"testing"
@@ -62,27 +61,6 @@ func TestCacheManagement(t *testing.T) {
 	mode := info.Mode().Perm()
 	if mode != 0600 {
 		t.Errorf("expected cache file permissions 0600 (-rw-------), got %04o", mode)
-	}
-}
-
-// TestSubnetIPCalculation verifies calculation of IPs on a standard /24 subnet.
-func TestSubnetIPCalculation(t *testing.T) {
-	_, ipNet, err := net.ParseCIDR("192.168.1.50/24")
-	if err != nil {
-		t.Fatalf("failed to parse CIDR: %v", err)
-	}
-
-	ips := getSubnetIPs(ipNet)
-	if len(ips) != 254 {
-		t.Errorf("expected 254 subnet IPs, got %d", len(ips))
-	}
-
-	if ips[0] != "192.168.1.1" {
-		t.Errorf("expected first IP '192.168.1.1', got %q", ips[0])
-	}
-
-	if ips[len(ips)-1] != "192.168.1.254" {
-		t.Errorf("expected last IP '192.168.1.254', got %q", ips[len(ips)-1])
 	}
 }
 

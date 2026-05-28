@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// ScanResult represents an active host found during the subnet scan
+// ScanResult represents an active host found during the neighbor scan
 type ScanResult struct {
 	IP        string
 	IsAlive   bool
@@ -19,7 +19,7 @@ type ScanResult struct {
 	MAC       string
 }
 
-// PerformScan executes a fast parallel sweep of the interface's subnet
+// PerformScan executes a fast parallel targeted check of known active neighbor hosts
 func PerformScan(ifaceName string) error {
 	// 1. Locate interface and IP
 	iface, err := net.InterfaceByName(ifaceName)
@@ -51,31 +51,39 @@ func PerformScan(ifaceName string) error {
 	// 3. Resolve Default Gateway to flag it uniquely
 	gatewayIP := getGatewayIP(ifaceName)
 
-	// 4. Generate IP range to sweep
-	ips := getSubnetIPs(localIP)
-	if len(ips) == 0 {
-		return fmt.Errorf("failed to calculate scan range for %s", localIP.String())
+	// 4. Generate target IPs (strictly limited to active neighbor cache, self and gateway)
+	targets := make(map[string]string) // IP -> MAC
+	for ip, mac := range arpMap {
+		targets[ip] = mac
+	}
+	// Add self
+	targets[localIP.IP.String()] = iface.HardwareAddr.String()
+	// Add gateway
+	if gatewayIP != "" {
+		if _, exists := targets[gatewayIP]; !exists {
+			targets[gatewayIP] = ""
+		}
 	}
 
 	// Display scanning header
 	fmt.Println("┌──────────────────────────────────────────────────────────────────────────────┐")
-	fmt.Printf("│  vane scan ─ Subnet Discovery Matrix (Interface: %-26s) │\n", ifaceName)
+	fmt.Printf("│  vane scan ─ Neighbor Discovery Matrix (Interface: %-26s) │\n", ifaceName)
 	fmt.Println("└──────────────────────────────────────────────────────────────────────────────┘")
-	fmt.Printf("  Scanning range %s (%d hosts) via fast TCP-peeking...\n\n", localIP.String(), len(ips))
+	fmt.Printf("  Scanning %d active neighbors from ARP cache via targeted TCP-peeking...\n\n", len(targets))
 
-	// 5. Parallel Sweep (Worker Pool)
+	// 5. Parallel targeted checks (Worker Pool)
 	commonPorts := []string{"22", "80", "443", "445", "3389", "8080"}
-	resultsChan := make(chan ScanResult, len(ips))
-	ipsChan := make(chan string, len(ips))
+	resultsChan := make(chan ScanResult, len(targets))
+	targetsChan := make(chan string, len(targets))
 
 	var wg sync.WaitGroup
-	numWorkers := 45
+	numWorkers := 10
 
 	for i := 0; i < numWorkers; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for ipStr := range ipsChan {
+			for ipStr := range targetsChan {
 				// Don't dial ourselves, we know we are alive!
 				if ipStr == localIP.IP.String() {
 					resultsChan <- ScanResult{
@@ -87,10 +95,10 @@ func PerformScan(ifaceName string) error {
 					continue
 				}
 
-				mac, inARP := arpMap[ipStr]
+				mac := targets[ipStr]
 				alive, openPorts := peekHost(ipStr, commonPorts)
 
-				if inARP {
+				if mac != "" {
 					alive = true
 				}
 
@@ -104,11 +112,11 @@ func PerformScan(ifaceName string) error {
 		}()
 	}
 
-	// Feed IPs to workers
-	for _, ip := range ips {
-		ipsChan <- ip.String()
+	// Feed active target IPs to workers
+	for ip := range targets {
+		targetsChan <- ip
 	}
-	close(ipsChan)
+	close(targetsChan)
 
 	// Start a background goroutine to close the results channel when workers finish
 	go func() {
@@ -116,12 +124,12 @@ func PerformScan(ifaceName string) error {
 		close(resultsChan)
 	}()
 
-	// Gather & sort alive results with a real-time progress spinner to keep the administrator informed
+	// Gather & sort alive results with a real-time progress spinner
 	var activeHosts []ScanResult
 	spinner := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 	idx := 0
 	count := 0
-	total := len(ips)
+	total := len(targets)
 
 	for res := range resultsChan {
 		count++
@@ -130,9 +138,9 @@ func PerformScan(ifaceName string) error {
 		}
 		// Render real-time progress inline
 		idx = (idx + 1) % len(spinner)
-		fmt.Printf("\r  %s Sweeping subnet: %d/%d IPs processed... (found %d alive)", spinner[idx], count, total, len(activeHosts))
+		fmt.Printf("\r  %s Verifying neighbors: %d/%d hosts processed... (active: %d)", spinner[idx], count, total, len(activeHosts))
 	}
-	
+
 	// Erase the progress line completely to render the final results cleanly
 	fmt.Print("\r\x1b[K")
 
@@ -154,7 +162,7 @@ func PerformScan(ifaceName string) error {
 			status = "[ GW ]"
 		}
 
-		// Pad raw status to exactly 8 characters first, then color it Green (\x1b[1;32m) to represent "UP / Active" status consistently across all tools
+		// Pad raw status to exactly 8 characters first, then color it Green (\x1b[1;32m) to represent "UP / Active" status consistently
 		statusPadded := fmt.Sprintf("%-8s", status)
 		statusColored := "\x1b[1;32m" + statusPadded + "\x1b[0m"
 
@@ -214,7 +222,7 @@ func PerformScan(ifaceName string) error {
 
 	fmt.Println(" ──────────────────────────────────────────────────────────────────────────────")
 
-	fmt.Printf("  Discovered %d active hosts in subnet.\n", len(activeHosts))
+	fmt.Printf("  Discovered %d active neighbors.\n", len(activeHosts))
 	return nil
 }
 
@@ -277,58 +285,6 @@ func checkLocalPorts(ports []string) []string {
 		}
 	}
 	return open
-}
-
-// getSubnetIPs calculates all standard host addresses inside the CIDR block.
-// Automatically caps massive subnets to a local /24 window for speed.
-func getSubnetIPs(ipNet *net.IPNet) []net.IP {
-	var ips []net.IP
-	ip := ipNet.IP.To4()
-	if ip == nil {
-		return nil
-	}
-
-	mask := ipNet.Mask
-	ones, bits := mask.Size()
-
-	// Restrict to /24 segment of active IP to guarantee sub-second scans
-	if ones < 24 {
-		ones = 24
-	}
-
-	numHosts := 1 << (bits - ones)
-	startIP := make(net.IP, 4)
-	copy(startIP, ip)
-	for i := 0; i < 4; i++ {
-		startIP[i] = startIP[i] & mask[i]
-	}
-
-	// Adjust base if forced /24 on wider address spaces
-	if ones == 24 && ipNet.Mask[2] != 255 {
-		startIP[2] = ip[2]
-	}
-
-	for i := 0; i < numHosts; i++ {
-		nextIP := make(net.IP, 4)
-		copy(nextIP, startIP)
-
-		val := uint32(nextIP[0])<<24 | uint32(nextIP[1])<<16 | uint32(nextIP[2])<<8 | uint32(nextIP[3])
-		val += uint32(i)
-
-		nextIP[0] = byte(val >> 24)
-		nextIP[1] = byte(val >> 16)
-		nextIP[2] = byte(val >> 8)
-		nextIP[3] = byte(val)
-
-		// Omit network ID (.0) and broadcast (.255)
-		if nextIP[3] == 0 || nextIP[3] == 255 {
-			continue
-		}
-
-		ips = append(ips, nextIP)
-	}
-
-	return ips
 }
 
 // parseARPTable parses Linux /proc/net/arp to fetch hardware addresses.

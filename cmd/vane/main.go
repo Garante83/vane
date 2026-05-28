@@ -700,9 +700,9 @@ func handleDiscoverSubcommand(ifaceName string, persistent, scanFlag, clearFlag,
 					return
 				default:
 					if getSystemLanguage() == "de" {
-						fmt.Printf("\r  %s Führe concurrent Port-Fingerprinting im Subnetz aus (%s)... ☕", spinner[idx], ifaceName)
+						fmt.Printf("\r  %s Führe gezieltes Port-Fingerprinting für bekannte Hosts aus (%s)... ☕", spinner[idx], ifaceName)
 					} else {
-						fmt.Printf("\r  %s Running concurrent port fingerprinting in subnet (%s)... ☕", spinner[idx], ifaceName)
+						fmt.Printf("\r  %s Running targeted port fingerprinting for known hosts (%s)... ☕", spinner[idx], ifaceName)
 					}
 					idx = (idx + 1) % len(spinner)
 					time.Sleep(80 * time.Millisecond)
@@ -710,7 +710,7 @@ func handleDiscoverSubcommand(ifaceName string, persistent, scanFlag, clearFlag,
 			}
 		}()
 
-		results, err = vssd.RunSubnetDiscovery(ifaceName)
+		results, err = vssd.RunTargetedDiscovery(ifaceName)
 		close(doneChan)
 		spinnerWg.Wait()
 		if err != nil {

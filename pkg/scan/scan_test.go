@@ -1,29 +1,8 @@
 package scan
 
 import (
-	"net"
 	"testing"
 )
-
-func TestGetSubnetIPs(t *testing.T) {
-	_, ipNet, err := net.ParseCIDR("192.168.1.1/24")
-	if err != nil {
-		t.Fatalf("failed to parse CIDR: %v", err)
-	}
-
-	ips := getSubnetIPs(ipNet)
-	// A standard /24 CIDR subnet has 254 available host addresses (omitting .0 and .255)
-	if len(ips) != 254 {
-		t.Errorf("expected 254 IPs, got %d", len(ips))
-	}
-
-	if ips[0].String() != "192.168.1.1" {
-		t.Errorf("expected first host IP to be 192.168.1.1, got %s", ips[0].String())
-	}
-	if ips[len(ips)-1].String() != "192.168.1.254" {
-		t.Errorf("expected last host IP to be 192.168.1.254, got %s", ips[len(ips)-1].String())
-	}
-}
 
 func TestFormatPorts(t *testing.T) {
 	tests := []struct {
