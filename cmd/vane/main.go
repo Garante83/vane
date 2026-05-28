@@ -707,13 +707,45 @@ func handleDiscoverSubcommand(ifaceName string, persistent, sweepFlag, clearFlag
 	// 1. Cache Clearing Action
 	if clearFlag {
 		path, err := vssd.GetCachePath()
-		if err == nil {
-			_ = os.Remove(path)
+		if err != nil {
+			return err
 		}
+
+		// If cache file doesn't exist, tell the user it is already empty
+		if _, errStat := os.Stat(path); os.IsNotExist(errStat) {
+			if getSystemLanguage() == "de" {
+				fmt.Println("  \x1b[1;33m[!] Der Service-Cache ist bereits leer.\x1b[0m")
+			} else {
+				fmt.Println("  \x1b[1;33m[!] The service cache is already empty.\x1b[0m")
+			}
+			return nil
+		}
+
+		// Ask for confirmation in clean Vane styling
+		var response string
 		if getSystemLanguage() == "de" {
-			fmt.Println("  \x1b[1;32m✔ Cache wurde erfolgreich gelöscht!\x1b[0m")
+			fmt.Print("  \x1b[1;33m[?] Möchtest du den Vane-Service-Cache wirklich löschen? [Y/n]:\x1b[0m ")
 		} else {
-			fmt.Println("  \x1b[1;32m✔ Cache cleared successfully!\x1b[0m")
+			fmt.Print("  \x1b[1;33m[?] Are you sure you want to clear the Vane service cache? [Y/n]:\x1b[0m ")
+		}
+
+		_, _ = fmt.Scanln(&response)
+		response = strings.TrimSpace(strings.ToLower(response))
+
+		// Default to Yes if they press Enter (empty response) or input y/yes/ja
+		if response == "" || response == "y" || response == "yes" || response == "ja" {
+			_ = os.Remove(path)
+			if getSystemLanguage() == "de" {
+				fmt.Println("  \x1b[1;32m✔ Cache wurde erfolgreich gelöscht!\x1b[0m")
+			} else {
+				fmt.Println("  \x1b[1;32m✔ Cache cleared successfully!\x1b[0m")
+			}
+		} else {
+			if getSystemLanguage() == "de" {
+				fmt.Println("  \x1b[1;31m[x] Löschvorgang abgebrochen.\x1b[0m")
+			} else {
+				fmt.Println("  \x1b[1;31m[x] Cache clear cancelled.\x1b[0m")
+			}
 		}
 		return nil
 	}
@@ -906,7 +938,7 @@ func handleDiscoverSubcommand(ifaceName string, persistent, sweepFlag, clearFlag
 			coloredNotation := getColoredSyntax(ifaceName, ">", lastOctet)
 			combinedNotation := fmt.Sprintf("%s / ...%s", coloredNotation, tok)
 
-			// Save if persistent flag is set, OR if the cache file already exists!
+			// Save if this is an active discovery, persistent flag is set, or cache file already exists!
 			cachePath, errPath := vssd.GetCachePath()
 			cacheExists := false
 			if errPath == nil {
@@ -915,7 +947,7 @@ func handleDiscoverSubcommand(ifaceName string, persistent, sweepFlag, clearFlag
 				}
 			}
 
-			if persistent || cacheExists {
+			if sweepFlag || targetIP != "" || persistent || cacheExists {
 				_ = vssd.UpdateCache(ifaceName, tok, entry)
 			}
 
