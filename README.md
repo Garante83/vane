@@ -123,9 +123,9 @@ Zero-config, peer-to-peer encrypted file transfers using ephemeral TLS 1.3 + ECD
 * *Purpose:* High-speed file sharing between resolved Vane targets.
 
 ### 5. Subnetwork Service Discovery (`vane discover [interface]`)
-An intelligent service discovery engine that maps your local network topology. It resolves local services and maintains a fast, secure, owner-only local cache (`~/.config/vane/cache.json`).
-* **Stealth Passive Mode (`vane discover`):** Resolves `.local` mDNS services and reads passive caches without sending active packets.
-* **Active Neighborhood Sweep (`vane discover --sweep` / `-w`):** Sweeps network neighbors and performs deep HTTP banner and payload fingerprinting.
+An intelligent service discovery engine to map and profile your local services. It supports both passive local cache lookups and conscious active network scanning:
+* **Stealth Passive Mode (`vane discover`):** Instantly displays previously verified services from your secure local cache (`cache.json`) and resolves local `.local` mDNS hostnames without sending any active probe packets.
+* **Active Neighborhood Sweep (`vane discover -w` / `--sweep`):** Actively sweeps known network neighbors from your OS ARP cache, performing concurrent TCP port and payload fingerprinting to identify services.
 * **Targeted Port Fingerprinting (`vane discover <IP>`):** Runs deep fingerprinting queries on a specific host's ports.
 * **Service Autodetection:** Recognizes custom signatures such as Proxmox VE (`pve`), Open WebUI (`owu`), Nextcloud (`ncd`), Paperless-ngx (`ppl`), Home Assistant (`hass`), Nginx Proxy Manager (`rpx`), and AdGuard/Pi-hole (`dns`).
 * **Interactive TUI Cache Editor (`vane discover -e`):** Fully interactive console manager to manually add, edit, or delete local services.
