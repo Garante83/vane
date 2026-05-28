@@ -43,6 +43,24 @@ Avoid typing long, case-sensitive physical adapter names (like `Ethernet 2` or `
 2. **Common Abbreviation Aliases**: Automatically maps standard Linux shorthand (e.g. `eth`, `wlan`, `wifi`) to their OS counterparts.
 3. **Prefix Matching**: Case-insensitive partial matching (e.g. `ether` matches `Ethernet`).
 
+### Why UIP? One Notation to Unify Both Worlds
+The Vane UIP (Unified IP) Notation was specifically engineered to bridge the complexity gap between legacy IPv4 networks and modern IPv6 infrastructure under a single, cohesive syntax. It offers massive operational advantages for both environments:
+
+#### ⚡ The Legacy IPv4 Advantage: Dynamic Subnet Agnosticism
+For pure IPv4 administrators, UIP removes the friction of shifting network environments (e.g., moving between home labs, office subnets, and remote VPNs):
+* **Context-Aware Suffix Resolution:** Instead of manually looking up your current IP address and typing `192.168.178.33`, you simply type `eno1|>...33`. Vane dynamically inspects the active adapter, extracts the current subnet prefix, and replaces only the final octets.
+* **Write Once, Run Anywhere:** The exact same command `vane ping "eno1|>...gw"` or `vane ssh user@"eno1|>...33"` works out of the box whether you are sitting in a `192.168.1.X` home network, a `10.0.0.X` corporate segment, or a `172.16.50.X` VPN tunnel. You never have to manually lookup or type the active subnet prefix again.
+
+#### 🛡️ The IPv6 Advantage: Eliminating Link-Local Complexity
+For dual-stack and modern IPv6 administrators, UIP eliminates the tedious formatting and typing of 128-bit hex strings:
+* **No More Link-Local Scope Formatting:** Typing standard IPv6 link-local addresses (like `fe80::b827:ebff:fe21:3e8e%eno1`) requires remembering the prefix, hardware hex, and appending the OS interface scope. Vane's `1|>...3e8e` calculates the correct EUI-64 address and appends the zone scope index automatically.
+* **Immunity to Floating SLAAC IPs:** Under dynamic networks, IPv6 addresses rotate frequently due to privacy extensions. UIP targets the host's permanent EUI-64 hardware signature, ensuring stable connections even as floating IPs change.
+
+#### 🏷️ The VSSD Advantage: Semantic Service Mapping (Both Worlds)
+Regardless of whether your local infrastructure runs on legacy IPv4 or dynamic dual-stack IPv6, VSSD (Vane Semi-Static Discovery) elevates your command line to **semantic addressing**:
+* **Target Services, Not IPs:** Instead of memorizing shifting DHCP leases or long IPv6 addresses, you connect directly to the service identity: `vane ssh user@"eno1|>...pve"`.
+* **Dynamic Resolution Engine:** VSSD dynamically resolves these semantic tokens in real-time by matching them against local ARP/NDP tables, mDNS advertisements, or a secure local cache (`cache.json`). If a server's IP changes, Vane resolves the new target instantly, ensuring your workflows never break.
+
 ---
 
 ## 2. Token Reference & Dynamic Resolution
