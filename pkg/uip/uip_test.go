@@ -369,3 +369,82 @@ func TestUtilityFunctions(t *testing.T) {
 		t.Errorf("ResolveIPv4Dots failed: expected 192.168.1.99, got %q", res)
 	}
 }
+
+// TestExtractToken_Semantic verifies that semantic service tokens are parsed correctly.
+func TestExtractToken_Semantic(t *testing.T) {
+	input := "eno1|>...pve:22"
+	token, found := ExtractToken(input)
+	if !found {
+		t.Fatalf("expected semantic token to be extracted, got not found")
+	}
+	if token.HostPart != "pve" {
+		t.Errorf("expected HostPart 'pve', got %q", token.HostPart)
+	}
+	if token.Port != "22" {
+		t.Errorf("expected Port '22', got %q", token.Port)
+	}
+}
+
+// TestIsSemanticToken verifies the helper function classifies tokens correctly.
+func TestIsSemanticToken(t *testing.T) {
+	tests := []struct {
+		hostPart string
+		expected bool
+	}{
+		{"pve", true},
+		{"nas", true},
+		{"hass", true},
+		{"pi", true},
+		{"gw", false},
+		{"router", false},
+		{"33", false},
+		{"3e:8e", false},
+		{"192.168.1.100", false},
+	}
+
+	for _, tt := range tests {
+		res := IsSemanticToken(tt.hostPart)
+		if res != tt.expected {
+			t.Errorf("IsSemanticToken(%q) = %t; expected %t", tt.hostPart, res, tt.expected)
+		}
+	}
+}
+
+// TestResolveSemanticHook validates that registering a semantic hook resolves successfully.
+func TestResolveSemanticHook(t *testing.T) {
+	// Register hook
+	ResolveSemanticHook = func(token *Token, state *netstate.State) (string, bool, error) {
+		if token.HostPart == "pve" {
+			return "192.168.178.140", true, nil
+		}
+		return "", false, nil
+	}
+	defer func() { ResolveSemanticHook = nil }() // cleanup
+
+	token := &Token{
+		HostPart: "pve",
+	}
+	state := &netstate.State{
+		InterfaceName: "eno1",
+	}
+
+	ip, err := ResolveTokenIP(token, state)
+	if err != nil {
+		t.Fatalf("expected successful resolution, got error: %v", err)
+	}
+	if ip != "192.168.178.140" {
+		t.Errorf("expected resolved IP '192.168.178.140', got %q", ip)
+	}
+
+	// Test unhandled semantic token returns error
+	tokenUnhandled := &Token{
+		HostPart: "nas",
+	}
+	_, errUnhandled := ResolveTokenIP(tokenUnhandled, state)
+	if errUnhandled == nil {
+		t.Fatal("expected error for unhandled semantic token, got nil")
+	}
+	if !strings.Contains(errUnhandled.Error(), "Semantisches Token 'nas' konnte nicht aufgelöst werden") {
+		t.Errorf("expected semantic token error, got: %v", errUnhandled)
+	}
+}

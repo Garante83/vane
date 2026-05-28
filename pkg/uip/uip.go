@@ -24,7 +24,28 @@ type Token struct {
 }
 
 // vaneRegex defines the structural pattern of the Vane CLI syntax.
-var vaneRegex = regexp.MustCompile(`([a-zA-Z0-9]+)\s*\|([>:<!])(\.+)([a-fA-F0-9\.:]+|gw|router)(?::([0-9]+))?`)
+var vaneRegex = regexp.MustCompile(`([a-zA-Z0-9]+)\s*\|([>:<!])(\.+)([a-zA-Z0-9\.:]+)(?::([0-9]+))?`)
+
+// ResolveSemanticHook is a callback function that the caller can register to resolve semantic/service tokens.
+// It takes the token and the netstate, and returns the resolved IP, a boolean indicating if it was handled, and any error.
+var ResolveSemanticHook func(token *Token, state *netstate.State) (string, bool, error)
+
+// IsSemanticToken returns true if the hostpart represents a semantic service-oriented token
+// rather than a numeric IP segment, gateway keyword, or hex MAC suffix.
+func IsSemanticToken(hostPart string) bool {
+	if hostPart == "gw" || hostPart == "router" {
+		return false
+	}
+	// If it contains any character that is not a hex digit (0-9, a-f, A-F) or a colon/dot,
+	// it must be a semantic token.
+	for _, c := range hostPart {
+		isHexChar := (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') || c == ':' || c == '.'
+		if !isHexChar {
+			return true
+		}
+	}
+	return false
+}
 
 // ParseToken validates and parses a token string (maintained for backwards compatibility).
 func ParseToken(input string) (*Token, bool) {
@@ -72,6 +93,22 @@ func ExtractToken(input string) (*Token, bool) {
 
 // ResolveTokenIP is the centralized engine for converting a Vane notation token into a raw IP address
 func ResolveTokenIP(targetToken *Token, state *netstate.State) (string, error) {
+	// If a semantic hook is registered or this is a semantic token, try resolving it first.
+	if ResolveSemanticHook != nil || IsSemanticToken(targetToken.HostPart) {
+		if ResolveSemanticHook != nil {
+			ip, handled, err := ResolveSemanticHook(targetToken, state)
+			if handled {
+				if err != nil {
+					return "", err
+				}
+				return ip, nil
+			}
+		}
+		if IsSemanticToken(targetToken.HostPart) {
+			return "", fmt.Errorf("[vane] Error: Semantisches Token '%s' konnte nicht aufgelöst werden (kein aktiver Service-Finder oder Cache vorhanden).", targetToken.HostPart)
+		}
+	}
+
 	var targetIP string
 
 	switch targetToken.Direction {

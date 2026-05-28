@@ -4,10 +4,12 @@
 build:
 	go build -o vane ./cmd/vane
 
-# Führt alle Unit-Tests aus (Pflichtverfahren vor jedem Commit/Release)
+# Führt alle Unit-Tests und Integrations-Smoke-Tests aus (Pflichtverfahren vor jedem Commit/Release)
 test:
 	@echo "[vane] Führe die gesamte Test-Suite aus..."
 	go test -v -count=1 ./...
+	@echo "[vane] Führe Integrations-Smoke-Tests aus..."
+	./smoke_test.sh
 
 
 # Führt das Projekt direkt aus (ohne eine bleibende Datei zu erzeugen)
