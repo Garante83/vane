@@ -94,7 +94,7 @@ func PerformTrace(target string) error {
 	signal.Notify(exitChan, os.Interrupt, syscall.SIGTERM)
 
 	// Clean screen code
-	fmt.Print("\033[?25l") // Hide cursor
+	fmt.Print("\033[?25l")       // Hide cursor
 	defer fmt.Print("\033[?25h") // Restore cursor
 
 	// Visual header length for cursor resetting (unified box top is 3 lines, header is 3 lines, table footer is 1 line, bottom is 1 line)

@@ -14,7 +14,7 @@ import (
 func handleAutocomplete(words []string) {
 	if len(words) <= 1 {
 		// Suggest main commands
-		fmt.Println("scan trace sniff send recv doc man help")
+		fmt.Println("scan trace sniff send recv discover doc man help")
 		return
 	}
 
@@ -22,12 +22,12 @@ func handleAutocomplete(words []string) {
 
 	// If we are at the second word (e.g. vane p[Tab])
 	if len(words) == 2 {
-		fmt.Println("scan trace sniff send recv doc man help")
+		fmt.Println("scan trace sniff send recv discover doc man help")
 		return
 	}
 
 	// Dynamic suggestions for commands that take an interface or target
-	if subCmd == "ping" || subCmd == "ssh" || subCmd == "scp" || subCmd == "curl" || subCmd == "scan" || subCmd == "trace" || subCmd == "sniff" || subCmd == "check" {
+	if subCmd == "ping" || subCmd == "ssh" || subCmd == "scp" || subCmd == "curl" || subCmd == "scan" || subCmd == "trace" || subCmd == "sniff" || subCmd == "check" || subCmd == "discover" {
 		// Only suggest on the first argument after the command (e.g., vane ping [Tab])
 		if len(words) == 3 {
 			var suggestions []string
@@ -87,7 +87,7 @@ func printAutocompleteHelp() {
 		fmt.Println("  source <(vane autocomplete script)")
 		fmt.Println("\nFunktionsweise:")
 		fmt.Println("  Nach der Installation vervollständigt Vane automatisch:")
-		fmt.Println("  - Befehle (ping, scan, trace, sniff, etc.)")
+		fmt.Println("  - Befehle (ping, scan, trace, sniff, discover, etc.)")
 		fmt.Println("  - Schnittstellennamen (eno1, lo)")
 		fmt.Println("  - Numerische Schnittstellen-Indizes ([0], [1])")
 		fmt.Println("  - Vane-Syntaxvorlagen (z.B. \"1|>...gw\")")
@@ -100,7 +100,7 @@ func printAutocompleteHelp() {
 		fmt.Println("  source <(vane autocomplete script)")
 		fmt.Println("\nFeatures:")
 		fmt.Println("  Once installed, Vane will automatically complete:")
-		fmt.Println("  - Commands (ping, scan, trace, sniff, etc.)")
+		fmt.Println("  - Commands (ping, scan, trace, sniff, discover, etc.)")
 		fmt.Println("  - Interface names (eno1, lo)")
 		fmt.Println("  - Numeric interface indices ([0], [1])")
 		fmt.Println("  - Vane syntax templates (e.g. \"1|>...gw\")")

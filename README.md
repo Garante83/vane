@@ -88,21 +88,30 @@ Query and cross-reference network configurations bidirectionally on any active a
 
 While these built-in diagnostics are designed to seamlessly support the Vane Notation, they can also be used completely independently as standalone, simple network utilities in their own right—even if industry-standard tools already exist.
 
-### A. Subnet Scanner (`vane scan [interface]`)
+### 1. Subnet Scanner (`vane scan [interface]`)
 An ultra-fast, concurrent TCP stealth sweeper. It discovers active hosts on your subnet, sweeps common ports, queries the kernel ARP table, and outputs **direct copy-pasteable Vane tokens** in a stramm aligned grid.
 * *Purpose:* Instantly discover Vane-Notation targets currently online in your LAN.
 
-### B. Interactive Route & Latency Profiler (`vane trace <target>`)
+### 2. Interactive Route & Latency Profiler (`vane trace <target>`)
 A beautiful, real-time MTR-style path and jitter profiler. It queries routing hops and concurrent-pings them to produce live ASCII sparkline graphs.
 * *Purpose:* Fully supports Vane-Syntax (e.g., `vane trace "eno1|>...gw"`).
 
-### C. Traffic Sniffer (`vane sniff [interface]`)
+### 3. Traffic Sniffer (`vane sniff [interface]`)
 Pure-Go zero-dependency traffic capture tool. Monitors HTTP requests and DNS queries in real-time using native Linux Raw Sockets (`AF_PACKET`) or falls back to a PowerShell connection-to-process mapper on Windows.
 * *Purpose:* Debug protocol flows coming from resolved Vane targets.
 
-### D. Secure P2P Streaming (`vane send` / `vane recv`)
+### 4. Secure P2P Streaming (`vane send` / `vane recv`)
 Zero-config, peer-to-peer encrypted file transfers using ephemeral TLS 1.3 + ECDHE, session-bound HMAC pairing codes, and parallel SHA-256 integrity verification.
 * *Purpose:* High-speed file sharing between resolved Vane targets.
+
+### 5. Subnetwork Service Discovery (`vane discover [interface]`)
+An intelligent service discovery engine that maps your local network topology. It resolves local services and maintains a fast, secure, owner-only local cache (`~/.config/vane/cache.json`).
+* **Stealth Passive Mode (`vane discover`):** Resolves `.local` mDNS services and reads passive caches without sending active packets.
+* **Active Neighborhood Sweep (`vane discover --sweep` / `-w`):** Sweeps network neighbors and performs deep HTTP banner and payload fingerprinting.
+* **Targeted Port Fingerprinting (`vane discover <IP>`):** Runs deep fingerprinting queries on a specific host's ports.
+* **Service Autodetection:** Recognizes custom signatures such as Proxmox VE (`pve`), Open WebUI (`owu`), Nextcloud (`ncd`), Paperless-ngx (`ppl`), Home Assistant (`hass`), Nginx Proxy Manager (`rpx`), and AdGuard/Pi-hole (`dns`).
+* **Interactive TUI Cache Editor (`vane discover -e`):** Fully interactive console manager to manually add, edit, or delete local services.
+* **Enterprise-Ready:** Features a sweep-safe Enterprise compilation option that blocks active neighborhood sweeps while preserving passive and single-target discovery (see [Enterprise-Safe Compilation](#enterprise-safe-compilation-sweep-free) in the Installation section).
 
 ---
 
@@ -172,6 +181,13 @@ cd vane
 
 # Compile and install globally (requires sudo to copy to /usr/local/bin)
 make install
+```
+
+### Enterprise-Safe Compilation (Sweep-Free)
+For corporate or highly regulated networks where active neighborhood sweeps are restricted or prohibited, compile Vane with the `nosweep` build tag. This automatically disables active sweeping, while retaining stealthy passive cache matching and targeted single-host scans:
+```bash
+# Compile and install the sweep-safe Enterprise version
+make install-enterprise
 ```
 
 ### Uninstallation

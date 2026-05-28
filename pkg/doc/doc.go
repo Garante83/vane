@@ -109,10 +109,10 @@ func GetPages(lang string) []Page {
 					"    Direkte, gesicherte Dateiübertragung über TLS 1.3 mittels sitzungsgebundener Einmalcodes.",
 					"",
 					"  📌 SERVICE DISCOVERY MATRIX (vane discover [iface]):",
-					"    Sucht im LAN nach aktiven Management-Services (Proxmox, NAS, Hass, Pi).",
-					"    Unterstützt --persistent zum lautlosen Speichern im Secure-Cache,",
-					"    --scan (-s) für aktive Subnetz-Sweeps, --clear (-c) zum Wischen des Caches",
-					"    sowie --edit (-e) zur händischen Pflege virtueller LXC-Umgebungen.",
+					"    Sucht im LAN nach aktiven Management-Services (Proxmox, NAS, Hass, Pi, Open WebUI, Paperless, Nextcloud).",
+					"    Unterstützt --persistent (-p) zum lautlosen Speichern im Secure-Cache,",
+					"    --sweep (-w) für aktive Subnetz-Sweeps, --specific (-s) zum Scannen einzelner IPs,",
+					"    --clear (-c) zum Wischen des Caches sowie --edit (-e) zur händischen Pflege.",
 				},
 			},
 		}
@@ -211,10 +211,10 @@ func GetPages(lang string) []Page {
 				"    Encrypted high-performance peer-to-peer file transfers using TLS 1.3.",
 				"",
 				"  📌 SERVICE DISCOVERY MATRIX (vane discover [iface]):",
-				"    Sweeps LAN for active management platforms (Proxmox, NAS, Hass, Pi).",
-				"    Supports --persistent to stealthily resolve mappings via secure cache,",
-				"    --scan (-s) for subnet fingerprinters, --clear (-c) to purge cache,",
-				"    and --edit (-e) to manually override virtualized host mappings.",
+				"    Sweeps LAN for active management platforms (Proxmox, NAS, Hass, Pi, Open WebUI, Paperless, Nextcloud).",
+				"    Supports --persistent (-p) to stealthily resolve mappings via secure cache,",
+				"    --sweep (-w) for active neighborhood sweeps, --specific (-s) to scan a single IP,",
+				"    --clear (-c) to purge cache, and --edit (-e) to manually edit registry entries.",
 			},
 		},
 	}
@@ -251,7 +251,7 @@ func ShowManual(lang string) {
 			printHeaderLine("  vane ─ Interactive Terminal Manual & System Documentation")
 		}
 		fmt.Print("  ├" + strings.Repeat("─", 74) + "┤\r\n")
-		
+
 		// Page bar: Center the items beautifully inside the box
 		var navs []string
 		labels := []string{"Konzept", "Subnetz", "MAC / WAN", "Werkzeuge"}
@@ -267,7 +267,7 @@ func ShowManual(lang string) {
 			navs = append(navs, fmt.Sprintf("[%d%s] %s", i+1, activeIndicator, labels[i]))
 		}
 		navStr := strings.Join(navs, "    ") // 4 spaces between items
-		
+
 		// Center the navigation string inside the 74-character width
 		totalInsideWidth := 74
 		navLen := len([]rune(navStr))

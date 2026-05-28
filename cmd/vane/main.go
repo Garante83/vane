@@ -252,27 +252,58 @@ func main() {
 		os.Exit(0)
 	}
 
-	// 2.95 Subcommand: Discover (vane discover [interface] [--persistent] [--scan] [--clear] [--edit])
+	// 2.95 Subcommand: Discover (vane discover [interface] [--persistent] [--sweep] [--specific IP] [--clear] [--edit])
 	if os.Args[1] == "discover" {
 		ifaceName := ""
 		persistent := false
-		scanFlag := false
+		sweepFlag := false
 		clearFlag := false
 		editFlag := false
 
 		// Parse options
+		targetSpec := ""
 		for i := 2; i < len(os.Args); i++ {
 			arg := os.Args[i]
 			if arg == "--persistent" || arg == "-p" {
 				persistent = true
-			} else if arg == "--scan" || arg == "-s" {
-				scanFlag = true
+			} else if arg == "--sweep" || arg == "-w" {
+				sweepFlag = true
+			} else if arg == "--specific" || arg == "-s" {
+				if i+1 < len(os.Args) {
+					targetSpec = os.Args[i+1]
+					i++
+				}
 			} else if arg == "--clear" || arg == "-c" {
 				clearFlag = true
 			} else if arg == "--edit" || arg == "-e" {
 				editFlag = true
-			} else if !strings.HasPrefix(arg, "-") && ifaceName == "" {
-				ifaceName = arg
+			} else if !strings.HasPrefix(arg, "-") {
+				if strings.Contains(arg, "|>") || strings.Contains(arg, "...") || net.ParseIP(arg) != nil {
+					targetSpec = arg
+				} else if ifaceName == "" {
+					ifaceName = arg
+				} else {
+					targetSpec = arg
+				}
+			}
+		}
+
+		if targetSpec != "" {
+			_, isVane := uip.ExtractToken(targetSpec)
+			isIP := net.ParseIP(targetSpec) != nil
+			if !isVane && !isIP {
+				if getSystemLanguage() == "de" {
+					fmt.Fprintf(os.Stderr, "[vane] Fehler: Ungültiges Scan-Ziel '%s'. Das Ziel muss eine valide IP-Adresse oder die strikte Vane-Notation sein (z.B. '1|>...pve' oder 'eno1|>...pve').\n", targetSpec)
+				} else {
+					fmt.Fprintf(os.Stderr, "[vane] Error: Invalid scan target '%s'. Target must be a valid IP address or a strict Vane notation (e.g. '1|>...pve' or 'eno1|>...pve').\n", targetSpec)
+				}
+				os.Exit(1)
+			}
+
+			if t, isVane := uip.ExtractToken(targetSpec); isVane {
+				if ifaceName == "" {
+					ifaceName = t.Interface
+				}
 			}
 		}
 
@@ -283,9 +314,30 @@ func main() {
 			ifaceName = "eno1" // absolute fallback
 		}
 
+		// Resolve alias/index to real name if passed (e.g. "1" -> "eno1")
+		// Clean full token notation if passed
+		if t, isVane := uip.ExtractToken(ifaceName); isVane {
+			ifaceName = t.Interface
+		}
+
+		var targetIP, targetMAC string
+		if targetSpec != "" {
+			if net.ParseIP(targetSpec) != nil {
+				targetIP = targetSpec
+			} else if t, isVane := uip.ExtractToken(targetSpec); isVane {
+				state, err := netstate.GetInterfaceState(t.Interface)
+				if err == nil {
+					resolved, errResolve := uip.ResolveTokenIP(t, state)
+					if errResolve == nil {
+						targetIP = resolved
+					}
+				}
+			}
+		}
+
 		// Handle editor and clear actions immediately (independent of active interface state)
 		if clearFlag || editFlag {
-			err := handleDiscoverSubcommand(ifaceName, persistent, scanFlag, clearFlag, editFlag)
+			err := handleDiscoverSubcommand(ifaceName, persistent, sweepFlag, clearFlag, editFlag, targetIP, targetMAC)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "[vane] Error: %v\n", err)
 				os.Exit(1)
@@ -298,19 +350,13 @@ func main() {
 			os.Exit(1)
 		}
 
-		// Clean full token notation if passed
-		if t, isVane := uip.ExtractToken(ifaceName); isVane {
-			ifaceName = t.Interface
-		}
-
-		// Resolve alias/index to real name if passed (e.g. "1" -> "eno1")
 		state, err := netstate.GetInterfaceState(ifaceName)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[vane] Error: %v\n", err)
 			os.Exit(1)
 		}
 
-		err = handleDiscoverSubcommand(state.InterfaceName, persistent, scanFlag, clearFlag, editFlag)
+		err = handleDiscoverSubcommand(state.InterfaceName, persistent, sweepFlag, clearFlag, editFlag, targetIP, targetMAC)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[vane] Error: %v\n", err)
 			os.Exit(1)
@@ -635,7 +681,6 @@ func printInterfaceMatrix() {
 	fmt.Println(" ──────────────────────────────────────────────────────────────────────────────")
 }
 
-
 func getSpelledOutName(token string) string {
 	switch token {
 	case "pve":
@@ -658,7 +703,7 @@ func getSpelledOutNameCustom(token string, entry vssd.CacheEntry) string {
 	return getSpelledOutName(token)
 }
 
-func handleDiscoverSubcommand(ifaceName string, persistent, scanFlag, clearFlag, editFlag bool) error {
+func handleDiscoverSubcommand(ifaceName string, persistent, sweepFlag, clearFlag, editFlag bool, targetIP, targetMAC string) error {
 	// 1. Cache Clearing Action
 	if clearFlag {
 		path, err := vssd.GetCachePath()
@@ -685,7 +730,51 @@ func handleDiscoverSubcommand(ifaceName string, persistent, scanFlag, clearFlag,
 	var results map[string]vssd.CacheEntry
 	var err error
 
-	if scanFlag {
+	if sweepFlag || targetIP != "" {
+		doneChan := make(chan bool)
+		var spinnerWg sync.WaitGroup
+		spinnerWg.Add(1)
+		go func() {
+			defer spinnerWg.Done()
+			spinner := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+			idx := 0
+			for {
+				select {
+				case <-doneChan:
+					fmt.Print("\r\033[K") // Erase spinner line cleanly
+					return
+				default:
+					if targetIP != "" {
+						if getSystemLanguage() == "de" {
+							fmt.Printf("\r  %s Führe gezieltes Port-Fingerprinting für %s aus... ☕", spinner[idx], targetIP)
+						} else {
+							fmt.Printf("\r  %s Running targeted port fingerprinting for %s... ☕", spinner[idx], targetIP)
+						}
+					} else {
+						if getSystemLanguage() == "de" {
+							fmt.Printf("\r  %s Führe aktiven Nachbarschafts-Sweep aus (%s)... ☕", spinner[idx], ifaceName)
+						} else {
+							fmt.Printf("\r  %s Running active neighborhood sweep (%s)... ☕", spinner[idx], ifaceName)
+						}
+					}
+					idx = (idx + 1) % len(spinner)
+					time.Sleep(80 * time.Millisecond)
+				}
+			}
+		}()
+
+		if targetIP != "" {
+			results, err = vssd.RunSingleTargetDiscovery(ifaceName, targetIP, targetMAC)
+		} else {
+			results, err = vssd.RunTargetedDiscovery(ifaceName)
+		}
+		close(doneChan)
+		spinnerWg.Wait()
+		if err != nil {
+			return err
+		}
+	} else {
+		// Passive Mode with spinner!
 		doneChan := make(chan bool)
 		var spinnerWg sync.WaitGroup
 		spinnerWg.Add(1)
@@ -700,9 +789,9 @@ func handleDiscoverSubcommand(ifaceName string, persistent, scanFlag, clearFlag,
 					return
 				default:
 					if getSystemLanguage() == "de" {
-						fmt.Printf("\r  %s Führe gezieltes Port-Fingerprinting für bekannte Hosts aus (%s)... ☕", spinner[idx], ifaceName)
+						fmt.Printf("\r  %s Lese passiven Cache und löse mDNS-Dienste auf... ☕", spinner[idx])
 					} else {
-						fmt.Printf("\r  %s Running targeted port fingerprinting for known hosts (%s)... ☕", spinner[idx], ifaceName)
+						fmt.Printf("\r  %s Reading passive cache and resolving mDNS services... ☕", spinner[idx])
 					}
 					idx = (idx + 1) % len(spinner)
 					time.Sleep(80 * time.Millisecond)
@@ -710,25 +799,26 @@ func handleDiscoverSubcommand(ifaceName string, persistent, scanFlag, clearFlag,
 			}
 		}()
 
-		results, err = vssd.RunTargetedDiscovery(ifaceName)
-		close(doneChan)
-		spinnerWg.Wait()
-		if err != nil {
-			return err
-		}
-	} else {
-		// Passive mode: load from secure cache
+		// Passive mode logic
 		cacheMap, loadErr := vssd.LoadCacheForInterface(ifaceName)
+		results = make(map[string]vssd.CacheEntry)
 		if loadErr == nil {
-			results = make(map[string]vssd.CacheEntry)
 			for k, v := range cacheMap {
 				results[k] = v
 			}
-		} else {
-			results = make(map[string]vssd.CacheEntry)
 		}
 
-		// Also augment with silent passive mDNS OS-level resolution if not already cached
+		// Passive ARP
+		arpResults, arpErr := vssd.RunPassiveARPDiscovery(ifaceName)
+		if arpErr == nil {
+			for k, v := range arpResults {
+				if _, exists := results[k]; !exists {
+					results[k] = v
+				}
+			}
+		}
+
+		// Passive mDNS
 		for _, sig := range vssd.Signatures {
 			if _, exists := results[sig.Token]; !exists {
 				if v4, v6, found := vssd.LookupMDNSOSResolver(sig.Token); found {
@@ -743,6 +833,9 @@ func handleDiscoverSubcommand(ifaceName string, persistent, scanFlag, clearFlag,
 				}
 			}
 		}
+
+		close(doneChan)
+		spinnerWg.Wait()
 	}
 
 	// Print high-visibility table aligned with gold standard interface matrix
@@ -756,14 +849,14 @@ func handleDiscoverSubcommand(ifaceName string, persistent, scanFlag, clearFlag,
 	// Filter out completely offline elements to keep TUI clean and professional
 	stdOrder := []string{"pve", "nas", "hass", "pi"}
 	var activeTokens []string
-	
+
 	// First add std signatures if present and online
 	for _, stdTok := range stdOrder {
 		if entry, found := results[stdTok]; found && entry.IP != "" {
 			activeTokens = append(activeTokens, stdTok)
 		}
 	}
-	
+
 	// Then gather any custom tokens, sort them alphabetically, and append
 	var customTokens []string
 	for tok, entry := range results {
@@ -782,14 +875,14 @@ func handleDiscoverSubcommand(ifaceName string, persistent, scanFlag, clearFlag,
 	}
 	sort.Strings(customTokens)
 	activeTokens = append(activeTokens, customTokens...)
-	
+
 	onlineCount := len(activeTokens)
 
 	if onlineCount == 0 {
 		if getSystemLanguage() == "de" {
-			fmt.Println("  [!] Keine aktiven Services im Netzwerk gefunden. Nutze \"--scan\" (-s) für eine aktive Suche.")
+			fmt.Println("  [!] Keine aktiven Services im Netzwerk gefunden. Nutze \"--sweep\" (-w) für eine aktive Suche.")
 		} else {
-			fmt.Println("  [!] No active services detected in the network. Use \"--scan\" (-s) to search actively.")
+			fmt.Println("  [!] No active services detected in the network. Use \"--sweep\" (-w) to search actively.")
 		}
 	} else {
 		// We loop over all online service tokens to show status for each
@@ -812,16 +905,24 @@ func handleDiscoverSubcommand(ifaceName string, persistent, scanFlag, clearFlag,
 			}
 			coloredNotation := getColoredSyntax(ifaceName, ">", lastOctet)
 			combinedNotation := fmt.Sprintf("%s / ...%s", coloredNotation, tok)
-			
-			// If persistent flag is activated, write to the secure cache!
-			if persistent {
+
+			// Save if persistent flag is set, OR if the cache file already exists!
+			cachePath, errPath := vssd.GetCachePath()
+			cacheExists := false
+			if errPath == nil {
+				if _, errStat := os.Stat(cachePath); errStat == nil {
+					cacheExists = true
+				}
+			}
+
+			if persistent || cacheExists {
 				_ = vssd.UpdateCache(ifaceName, tok, entry)
 			}
 
 			// Vertically align bracket abbreviations at exactly column 23
 			serviceName := fmt.Sprintf("%-20s(%s)", getSpelledOutNameCustom(tok, entry), tok)
 
-			fmt.Printf("  %-27s %s %-27s %-18s %-35s\n", 
+			fmt.Printf("  %-27s %s %-27s %-18s %-35s\n",
 				serviceName, statusCol, ip, mac, combinedNotation)
 
 			// Dual-stack IPv6 row printing if present!
@@ -844,11 +945,11 @@ func handleDiscoverSubcommand(ifaceName string, persistent, scanFlag, clearFlag,
 						lastFour = parts[len(parts)-1]
 					}
 				}
-				
+
 				// LAN IPv6 must use Outbound LAN symbol (>) since it is internal to the subnetwork
 				coloredV6 := getColoredSyntax(ifaceName, ">", lastFour)
 				statusColV6 := "           " // exactly 11 spaces to match statusCol visual width
-				fmt.Printf("  %-27s %s %-27s %-18s %-35s\n", 
+				fmt.Printf("  %-27s %s %-27s %-18s %-35s\n",
 					"", statusColV6, entry.IPv6, "", coloredV6)
 			}
 		}
@@ -861,7 +962,7 @@ func handleDiscoverSubcommand(ifaceName string, persistent, scanFlag, clearFlag,
 		} else {
 			fmt.Println("\n  \x1b[1;32m✔ Mappings successfully saved to cache.json (chmod 0600)!\x1b[0m")
 		}
-	} else if scanFlag {
+	} else if sweepFlag || targetIP != "" {
 		if getSystemLanguage() == "de" {
 			fmt.Println("\n  Tipp: Nutze \"vane discover --persistent\" zum Speichern für lautlose Auflösung!")
 		} else {
@@ -869,9 +970,9 @@ func handleDiscoverSubcommand(ifaceName string, persistent, scanFlag, clearFlag,
 		}
 	} else {
 		if getSystemLanguage() == "de" {
-			fmt.Println("\n  Hinweis: Dies zeigt den passiv erkannten Cache-Stand. Nutze \"--scan\" (-s) für einen aktiven Scan!")
+			fmt.Println("\n  Hinweis: Dies zeigt den passiv erkannten Cache-Stand. Nutze \"--sweep\" (-w) für einen aktiven Nachbarschafts-Sweep!")
 		} else {
-			fmt.Println("\n  Note: This shows the passive cached state. Use \"--scan\" (-s) to run an active subnet sweep!")
+			fmt.Println("\n  Note: This shows the passive cached state. Use \"--sweep\" (-w) to run an active neighborhood sweep!")
 		}
 	}
 
@@ -894,7 +995,9 @@ func runInteractiveCacheEditor(ifaceName string) error {
 	// Ensure the parent configuration directory exists with owner-only permissions (0700)
 	dir := filepath.Dir(path)
 	_ = os.MkdirAll(dir, 0700)
+	cacheExists := true
 	if _, err := os.Stat(path); os.IsNotExist(err) {
+		cacheExists = false
 		_ = os.WriteFile(path, []byte("{}\n"), 0600)
 	}
 
@@ -932,8 +1035,16 @@ func runInteractiveCacheEditor(ifaceName string) error {
 		if len(tokens) == 0 {
 			if getSystemLanguage() == "de" {
 				fmt.Println("    \x1b[90m(Keine Einträge im Cache gefunden)\x1b[0m")
+				if !cacheExists {
+					fmt.Println("\n    \x1b[1;33m💡 Hinweis: Der Cache ist noch leer, da bisher kein aktiver Scan mit '--persistent' (-p) ausgeführt wurde.\x1b[0m")
+					fmt.Println("    \x1b[1;33m   Drücke 'A', um manuell einen neuen Eintrag anzulegen!\x1b[0m")
+				}
 			} else {
 				fmt.Println("    \x1b[90m(No cached service entries found)\x1b[0m")
+				if !cacheExists {
+					fmt.Println("\n    \x1b[1;33m💡 Note: The cache is currently empty because no active scan with '--persistent' (-p) has been run yet.\x1b[0m")
+					fmt.Println("    \x1b[1;33m   Press 'A' to manually add your first service entry!\x1b[0m")
+				}
 			}
 		} else {
 			for idx, tok := range tokens {
@@ -947,7 +1058,7 @@ func runInteractiveCacheEditor(ifaceName string) error {
 					portsStr = strings.Join(pList, ", ")
 				}
 				displayName := getSpelledOutNameCustom(tok, entry)
-				
+
 				fmt.Printf("    \x1b[1;32m[%d]\x1b[0m \x1b[1;37m%-6s\x1b[0m ➔ \x1b[36m%-20s\x1b[0m \x1b[90m(IP: %-15s | Ports: %s)\x1b[0m\n",
 					idx+1, tok, displayName, entry.IP, portsStr)
 			}
@@ -984,7 +1095,7 @@ func runInteractiveCacheEditor(ifaceName string) error {
 		case "A":
 			// 1. Add new service entry
 			fmt.Println("\n  \x1b[1;36m➕ Neuen Dienst händisch hinzufügen:\x1b[0m")
-			
+
 			var tok string
 			for {
 				fmt.Print("    Kürzel / Token (exakt 3 Buchstaben, z. B. nas): ")
@@ -993,7 +1104,7 @@ func runInteractiveCacheEditor(ifaceName string) error {
 				if tokInput == "" {
 					break
 				}
-				
+
 				// Validate: exakt 3 Kleinbuchstaben
 				isValid := len(tokInput) == 3
 				if isValid {
@@ -1004,7 +1115,7 @@ func runInteractiveCacheEditor(ifaceName string) error {
 						}
 					}
 				}
-				
+
 				if !isValid {
 					if getSystemLanguage() == "de" {
 						fmt.Println("    \x1b[1;31m❌ Fehler: Das Kürzel muss aus exakt 3 Kleinbuchstaben (a-z) bestehen!\x1b[0m")
@@ -1013,7 +1124,7 @@ func runInteractiveCacheEditor(ifaceName string) error {
 					}
 					continue
 				}
-				
+
 				// Check duplicate
 				if _, exists := ifaceMap[tokInput]; exists {
 					if getSystemLanguage() == "de" {
@@ -1023,11 +1134,11 @@ func runInteractiveCacheEditor(ifaceName string) error {
 					}
 					continue
 				}
-				
+
 				tok = tokInput
 				break
 			}
-			
+
 			if tok == "" {
 				continue
 			}
@@ -1140,7 +1251,7 @@ func runInteractiveCacheEditor(ifaceName string) error {
 					newTok = tok
 					break
 				}
-				
+
 				// Validate
 				isValid := len(tokInput) == 3
 				if isValid {
@@ -1151,7 +1262,7 @@ func runInteractiveCacheEditor(ifaceName string) error {
 						}
 					}
 				}
-				
+
 				if !isValid {
 					if getSystemLanguage() == "de" {
 						fmt.Println("    \x1b[1;31m❌ Fehler: Das Kürzel muss aus exakt 3 Kleinbuchstaben (a-z) bestehen!\x1b[0m")
@@ -1160,7 +1271,7 @@ func runInteractiveCacheEditor(ifaceName string) error {
 					}
 					continue
 				}
-				
+
 				// Check duplicate
 				if _, exists := ifaceMap[tokInput]; exists {
 					if getSystemLanguage() == "de" {
@@ -1170,7 +1281,7 @@ func runInteractiveCacheEditor(ifaceName string) error {
 					}
 					continue
 				}
-				
+
 				newTok = tokInput
 				break
 			}
@@ -1247,7 +1358,7 @@ func runInteractiveCacheEditor(ifaceName string) error {
 			}
 
 			entry.LastSeen = time.Now()
-			
+
 			if newTok != tok {
 				delete(schema[ifaceName], tok)
 			}
@@ -1285,7 +1396,7 @@ func runInteractiveCacheEditor(ifaceName string) error {
 			// 5. System text editor
 			fmt.Println("\n  \x1b[1;36m📝 Starte System-Texteditor...\x1b[0m")
 			time.Sleep(500 * time.Millisecond)
-			
+
 			editor := os.Getenv("EDITOR")
 			if editor == "" {
 				editor = "nano"

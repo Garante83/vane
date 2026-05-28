@@ -1,11 +1,22 @@
-.PHONY: build run clean install uninstall release test
+.PHONY: build build-enterprise run clean install install-enterprise uninstall release test
 
-# Standardaktion: Kompiliert das Projekt in die ausführbare Datei 'vane'
+# Standardaktion: Kompiliert das Projekt in die ausführbare Datei 'vane' (Home/Private-Modus mit Sweep)
 build:
 	go build -o vane ./cmd/vane
 
-# Führt alle Unit-Tests und Integrations-Smoke-Tests aus (Pflichtverfahren vor jedem Commit/Release)
+# Enterprise-Aktion: Kompiliert das Projekt OHNE aktive Netzwerk-Sweeps (Unternehmensfreundlich)
+build-enterprise:
+	go build -tags nosweep -o vane ./cmd/vane
+
+# Führt alle Unit-Tests, Integrations-Smoke-Tests und Go Report Card Qualitätsprüfungen aus
 test:
+	@echo "[vane] Führe Go Report Card Qualitätsprüfungen aus (gofmt & go vet)..."
+	@if [ -n "$$(gofmt -s -l .)" ]; then \
+		echo "[vane] ❌ Fehler: Einige Go-Dateien sind nicht standardgemäß formatiert. Bitte führe 'gofmt -s -w .' aus!"; \
+		gofmt -s -l .; \
+		exit 1; \
+	fi
+	@go vet ./...
 	@echo "[vane] Führe die gesamte Test-Suite aus..."
 	go test -v -count=1 ./...
 	@echo "[vane] Führe Integrations-Smoke-Tests aus..."
@@ -16,10 +27,15 @@ test:
 run:
 	go run ./cmd/vane $(ARGS)
 
-# Installiert vane global im System, so dass es von überall aufgerufen werden kann
+# Installiert vane global im System, so dass es von überall aufgerufen werden kann (Home/Private-Modus)
 install: build
 	sudo install -m 755 vane /usr/local/bin/vane
 	@echo "[vane] Erfolgreich global als 'vane' installiert!"
+
+# Installiert die Enterprise-Version von vane global im System (sweepsicher)
+install-enterprise: build-enterprise
+	sudo install -m 755 vane /usr/local/bin/vane
+	@echo "[vane] Erfolgreich global als sweepsicheres 'vane' (Enterprise) installiert!"
 
 # Deinstalliert vane global aus dem System
 uninstall:

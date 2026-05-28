@@ -1,8 +1,14 @@
 package vssd
 
 import (
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
+	"sync"
 	"testing"
 	"time"
 )
@@ -70,5 +76,102 @@ func TestARPCacheParsing(t *testing.T) {
 	// Should not crash and return a valid map (empty or filled depending on test host state)
 	if arpMap == nil {
 		t.Error("expected non-nil ARP map")
+	}
+}
+
+// TestPassiveARPDiscovery verifies the passive ARP signature scanning does not crash and runs safely.
+func TestPassiveARPDiscovery(t *testing.T) {
+	results, err := RunPassiveARPDiscovery("lo")
+	if err != nil {
+		t.Fatalf("RunPassiveARPDiscovery failed: %v", err)
+	}
+	if results == nil {
+		t.Error("expected non-nil results map")
+	}
+}
+
+// TestIsAmbiguousPort verifies that ambiguous and unique ports are correctly segregated.
+func TestIsAmbiguousPort(t *testing.T) {
+	ambiguous := []int{22, 80, 443, 3000, 8080, 9000}
+	for _, port := range ambiguous {
+		if !isAmbiguousPort(port) {
+			t.Errorf("expected port %d to be ambiguous", port)
+		}
+	}
+
+	unambiguous := []int{8006, 8123, 32400, 5432, 6379}
+	for _, port := range unambiguous {
+		if isAmbiguousPort(port) {
+			t.Errorf("expected port %d to be non-ambiguous", port)
+		}
+	}
+}
+
+// TestFindSignature verifies standard token extraction.
+func TestFindSignature(t *testing.T) {
+	sig, found := FindSignature("pve")
+	if !found {
+		t.Error("expected signature 'pve' to be found")
+	}
+	if sig.DisplayName != "Proxmox VE" {
+		t.Errorf("expected DisplayName 'Proxmox VE', got %q", sig.DisplayName)
+	}
+
+	_, found = FindSignature("invalid_token_xyz")
+	if found {
+		t.Error("expected signature 'invalid_token_xyz' to not be found")
+	}
+}
+
+// TestPeekServiceFingerprint dynamically starts an HTTP mock server and checks HTML payload fingerprinting.
+func TestPeekServiceFingerprint(t *testing.T) {
+	var currentBody string
+	var mu sync.Mutex
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		body := currentBody
+		mu.Unlock()
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(body))
+	}))
+	defer ts.Close()
+
+	u, err := url.Parse(ts.URL)
+	if err != nil {
+		t.Fatalf("failed to parse url: %v", err)
+	}
+	host, portStr, err := net.SplitHostPort(u.Host)
+	if err != nil {
+		t.Fatalf("failed to split host port: %v", err)
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		t.Fatalf("failed to parse port: %v", err)
+	}
+
+	testCases := []struct {
+		body     string
+		expected string
+	}{
+		{"<html><body>Welcome to Proxmox VE</body></html>", "pve"},
+		{"<title>Open WebUI</title>", "owu"},
+		{"Welcome to nextcloud storage", "ncd"},
+		{"Welcome to paperless-ngx document manager", "ppl"},
+		{"Home Assistant dashboard", "hass"},
+		{"Elasticsearch server: you know, for search", "els"},
+		{"Unknown page", ""},
+	}
+
+	for _, tc := range testCases {
+		mu.Lock()
+		currentBody = tc.body
+		mu.Unlock()
+
+		token := peekServiceFingerprint(host, port)
+		if token != tc.expected {
+			t.Errorf("for body %q, expected token %q, got %q", tc.body, tc.expected, token)
+		}
 	}
 }

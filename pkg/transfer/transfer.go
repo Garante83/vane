@@ -321,7 +321,7 @@ func PerformReceive(port string) error {
 	fmt.Printf("│  vane recv ─ Standing by for incoming file transfer...             │\n")
 	fmt.Printf("└────────────────────────────────────────────────────────────────────┘\n")
 	fmt.Printf("  Listening on: [::]:%s (All Interfaces)\n", port)
-	
+
 	// Show local IPs to help user
 	localIPs := getLocalIPv4s()
 	if len(localIPs) > 0 {

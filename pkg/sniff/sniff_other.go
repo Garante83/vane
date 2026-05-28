@@ -1,4 +1,5 @@
 //go:build !linux && !windows
+
 package sniff
 
 import "fmt"

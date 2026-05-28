@@ -1,4 +1,5 @@
 //go:build linux
+
 package sniff
 
 import (
@@ -168,11 +169,11 @@ func parsePacket(packet []byte) {
 				if len(parts) >= 2 {
 					method := parts[0]
 					path := parts[1]
-					
+
 					// Pad the method prefix (e.g. "GET:") to 7 characters to match "QUERY: " exactly
 					methodLabel := fmt.Sprintf("%s:", method)
 					prefix := fmt.Sprintf("%-7s", methodLabel)
-					
+
 					detail := ""
 					if host != "" {
 						detail = fmt.Sprintf("%s%s (Host: %s)", prefix, path, host)

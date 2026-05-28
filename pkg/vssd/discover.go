@@ -16,79 +16,6 @@ import (
 	"vane/pkg/uip"
 )
 
-// ServiceSignature defines target fingerprints for specific home-server and enterprise services.
-type ServiceSignature struct {
-	Token          string
-	Ports          []int
-	MDNSNames      []string
-	MACOUIPrefixes []string
-}
-
-// Signatures is the static target fingerprint matrix for VSSD.
-var Signatures = []ServiceSignature{
-	{
-		Token:     "pve",
-		Ports:     []int{8006},
-		MDNSNames: []string{"proxmox", "pve"},
-	},
-	{
-		Token:          "nas",
-		Ports:          []int{5000, 5001, 445, 80, 443},
-		MDNSNames:      []string{"synology", "truenas", "nas", "nextcloud"},
-		MACOUIPrefixes: []string{"00:11:32"}, // Synology OUI
-	},
-	{
-		Token:          "pi",
-		Ports:          []int{22},
-		MDNSNames:      []string{"raspberrypi", "pi"},
-		MACOUIPrefixes: []string{"b8:27:eb", "dc:a6:32", "e4:5f:01"},
-	},
-	{
-		Token:     "hass",
-		Ports:     []int{8123},
-		MDNSNames: []string{"homeassistant", "hass"},
-	},
-	// Enterprise-typical database and infrastructure services
-	{
-		Token: "pgs",
-		Ports: []int{5432},
-	},
-	{
-		Token: "mys",
-		Ports: []int{3306},
-	},
-	{
-		Token: "rds",
-		Ports: []int{6379},
-	},
-	{
-		Token: "mgo",
-		Ports: []int{27017},
-	},
-	{
-		Token: "els",
-		Ports: []int{9200},
-	},
-	{
-		Token: "k8s",
-		Ports: []int{6443},
-	},
-	{
-		Token: "dck",
-		Ports: []int{2375, 2376},
-	},
-}
-
-// FindSignature retrieves the signature for a given token.
-func FindSignature(token string) (ServiceSignature, bool) {
-	for _, sig := range Signatures {
-		if sig.Token == token {
-			return sig, true
-		}
-	}
-	return ServiceSignature{}, false
-}
-
 // LookupMDNSOSResolver performs a quick, standard OS-level lookup for candidates, returning both IPv4 and IPv6 addresses.
 func LookupMDNSOSResolver(token string) (string, string, bool) {
 	sig, ok := FindSignature(token)
@@ -143,7 +70,17 @@ func DiscoverService(ifaceName, token string, active bool) (string, error) {
 		return v4, nil
 	}
 
-	// 3. Active Targeted verification (Only if explicitly enabled or requested, NO subnet sweeps)
+	// 3. Passive ARP Neighbor OUI Signature matching (zero footprint)
+	arpResults, err := RunPassiveARPDiscovery(ifaceName)
+	if err == nil {
+		if entry, found := arpResults[token]; found {
+			// Save to cache for ultra-fast subsequent lookup
+			_ = UpdateCache(ifaceName, token, entry)
+			return entry.IP, nil
+		}
+	}
+
+	// 4. Active Targeted verification (Only if explicitly enabled or requested, NO subnet sweeps)
 	if active {
 		results, err := RunTargetedDiscovery(ifaceName)
 		if err == nil {
@@ -157,131 +94,183 @@ func DiscoverService(ifaceName, token string, active bool) (string, error) {
 	return "", fmt.Errorf("service token '%s' could not be resolved on interface %s", token, ifaceName)
 }
 
+// RunPassiveARPDiscovery performs zero-footprint local neighbor table analysis
+// matching MAC OUI hardware addresses against known service signatures.
+func RunPassiveARPDiscovery(ifaceName string) (map[string]CacheEntry, error) {
+	arpMap := parseARPCache(ifaceName)
+	results := make(map[string]CacheEntry)
+
+	for ip, mac := range arpMap {
+		if mac == "" {
+			continue
+		}
+		cleanMac := strings.ToLower(strings.ReplaceAll(mac, ":", ""))
+
+		for _, sig := range Signatures {
+			if len(sig.MACOUIPrefixes) == 0 {
+				continue
+			}
+			for _, prefix := range sig.MACOUIPrefixes {
+				cleanPrefix := strings.ToLower(strings.ReplaceAll(prefix, ":", ""))
+				if strings.HasPrefix(cleanMac, cleanPrefix) {
+					// SLAAC Link-Local IPv6 computation from MAC
+					ipv6Str := ""
+					if hw, err := net.ParseMAC(mac); err == nil && len(hw) == 6 {
+						eui64 := uip.ComputeEUI64(hw)
+						ipv6Str = "fe80::" + eui64
+					}
+
+					results[sig.Token] = CacheEntry{
+						IP:              ip,
+						IPv6:            ipv6Str,
+						MAC:             mac,
+						Ports:           sig.Ports,
+						DiscoveryMethod: "passive_arp",
+						LastSeen:        time.Now(),
+					}
+					break
+				}
+			}
+		}
+	}
+
+	return results, nil
+}
+
 // RunTargetedDiscovery performs precise, non-aggressive service signature peeking
 // strictly limited to:
 // 1) Hosts currently present in the system's passive neighbor (ARP) cache.
 // 2) Hosts manually registered by the user in their Vane service cache.
-func RunTargetedDiscovery(ifaceName string) (map[string]CacheEntry, error) {
-	// A. Get local interface and passive ARP neighbors
-	arpMap := parseARPCache(ifaceName)
+//
+// Matching rules (confidence-based):
+//   - An open AMBIGUOUS port (80, 443, 22, 53, etc.) alone is NEVER sufficient for identification.
+//   - An open UNIQUE port (8006, 8123, 32400, etc.) IS sufficient as strong evidence.
+//   - A MAC OUI prefix match IS sufficient as strong evidence.
+//   - A payload fingerprint confirmation IS the highest evidence and overrides port-only matches.
+//   - If ONLY ambiguous ports are open, the signature requires additional OUI or fingerprint evidence.
 
-	// B. Also collect manually registered hosts from the local Vane cache
-	manualIPs := make(map[string]bool)
-	cacheMap, err := LoadCacheForInterface(ifaceName)
-	if err == nil {
-		for _, entry := range cacheMap {
-			if entry.IP != "" {
-				manualIPs[entry.IP] = true
-			}
-		}
-	}
-
-	// C. Combine all safe target IPs (no blind range sweeps!)
-	targets := make(map[string]string) // IP -> MAC
-	for ip, mac := range arpMap {
-		targets[ip] = mac
-	}
-	for ip := range manualIPs {
-		if _, exists := targets[ip]; !exists {
-			targets[ip] = "" // No MAC known yet
+// RunSingleTargetDiscovery performs targeted active port verification on a single designated host
+func RunSingleTargetDiscovery(ifaceName string, targetIP, targetMAC string) (map[string]CacheEntry, error) {
+	if targetMAC == "" {
+		arpMap := parseARPCache(ifaceName)
+		if mac, exists := arpMap[targetIP]; exists {
+			targetMAC = mac
 		}
 	}
 
 	results := make(map[string]CacheEntry)
+	cacheMap, _ := LoadCacheForInterface(ifaceName)
 	var mu sync.Mutex
-	var wg sync.WaitGroup
 
-	// Spin up a small worker pool to verify only these specific active targets
-	for ip, mac := range targets {
-		wg.Add(1)
-		go func(targetIP, targetMAC string) {
-			defer wg.Done()
+	matchHost(targetIP, targetMAC, cacheMap, &results, &mu)
 
-			// Check our signatures
-			for _, sig := range Signatures {
-				matched := false
-				var openPorts []int
+	return results, nil
+}
 
-				// 1. Check MAC OUI (instant, silent)
-				ouiMatched := false
-				if len(sig.MACOUIPrefixes) > 0 && targetMAC != "" {
-					cleanMac := strings.ToLower(strings.ReplaceAll(targetMAC, ":", ""))
-					for _, prefix := range sig.MACOUIPrefixes {
-						cleanPrefix := strings.ToLower(strings.ReplaceAll(prefix, ":", ""))
-						if strings.HasPrefix(cleanMac, cleanPrefix) {
-							ouiMatched = true
-							matched = true
-							break
-						}
-					}
-				}
+// matchHost runs the confidence-based signature matching against a single host IP.
+// It is shared between RunTargetedDiscovery and RunSingleTargetDiscovery to
+// guarantee identical matching behavior.
+func matchHost(targetIP, targetMAC string, cacheMap InterfaceMap, results *map[string]CacheEntry, mu *sync.Mutex) {
+	for _, sig := range Signatures {
+		var openPorts []int
+		ouiMatched := false
+		fingerprintConfirmed := false
+		fingerprintDenied := false
+		hasUniquePort := false
 
-				// 2. Precise Port verification (strictly limited to target)
-				for _, port := range sig.Ports {
-					if dialHost(targetIP, port, 150*time.Millisecond) {
-						openPorts = append(openPorts, port)
-						matched = true
-
-						// HTTP payload peeking to verify service
-						if port == 8006 || port == 8123 || port == 80 || port == 443 || port == 5000 || port == 5001 || port == 9200 || port == 6443 || port == 2375 || port == 2376 {
-							peekedToken := peekServiceFingerprint(targetIP, port)
-							if peekedToken != "" {
-								if peekedToken == sig.Token {
-									matched = true
-								} else {
-									matched = false
-								}
-							}
-						}
-					}
-				}
-
-				// Strict gate for "pi" (SSH check on generic Linux VMs is too broad)
-				if sig.Token == "pi" && matched {
-					if !ouiMatched {
-						matched = false
-						if pip, _, ok := LookupMDNSOSResolver("pi"); ok && pip == targetIP {
-							matched = true
-						}
-					}
-				}
-
-				if matched {
-					// SLAAC Link-Local IPv6 computation
-					ipv6Str := ""
-					if targetMAC != "" {
-						if hw, err := net.ParseMAC(targetMAC); err == nil && len(hw) == 6 {
-							eui64 := uip.ComputeEUI64(hw)
-							ipv6Str = "fe80::" + eui64
-						}
-					}
-					if _, v6Resolved, ok := LookupMDNSOSResolver(sig.Token); ok && v6Resolved != "" {
-						ipv6Str = v6Resolved
-					}
-
-					mu.Lock()
-					// Fallback to manual entry name if already present in cache
-					entryName := ""
-					if existing, exists := cacheMap[sig.Token]; exists {
-						entryName = existing.Name
-					}
-					results[sig.Token] = CacheEntry{
-						IP:              targetIP,
-						IPv6:            ipv6Str,
-						MAC:             targetMAC,
-						Name:            entryName,
-						Ports:           openPorts,
-						DiscoveryMethod: "targeted_fingerprint",
-						LastSeen:        time.Now(),
-					}
-					mu.Unlock()
+		// 1. Check MAC OUI prefix (instant, silent, high confidence)
+		if len(sig.MACOUIPrefixes) > 0 && targetMAC != "" {
+			cleanMac := strings.ToLower(strings.ReplaceAll(targetMAC, ":", ""))
+			for _, prefix := range sig.MACOUIPrefixes {
+				cleanPrefix := strings.ToLower(strings.ReplaceAll(prefix, ":", ""))
+				if strings.HasPrefix(cleanMac, cleanPrefix) {
+					ouiMatched = true
+					break
 				}
 			}
-		}(ip, mac)
-	}
+		}
 
-	wg.Wait()
-	return results, nil
+		// 2. Port verification: probe each signature port on the target
+		for _, port := range sig.Ports {
+			if dialHost(targetIP, port, 150*time.Millisecond) {
+				openPorts = append(openPorts, port)
+
+				// Track if at least one non-ambiguous (unique) port is open
+				if !isAmbiguousPort(port) {
+					hasUniquePort = true
+				}
+
+				// 3. Payload fingerprint peeking on HTTP-capable or protocol-specific ports
+				peekedToken := peekServiceFingerprint(targetIP, port)
+				if peekedToken != "" {
+					if peekedToken == sig.Token {
+						fingerprintConfirmed = true
+					} else {
+						fingerprintDenied = true
+					}
+				}
+			}
+		}
+
+		// === CONFIDENCE GATE ===
+		// A match requires at least ONE of these strong evidence signals:
+		//   a) Payload fingerprint positively confirmed this exact service
+		//   b) MAC OUI prefix matches a known manufacturer for this service
+		//   c) At least one UNIQUE (non-ambiguous) port is open (e.g. 8006, 8123, 32400)
+		//
+		// If the fingerprint actively DENIED this service (identified a different service
+		// on the same port), the match is always rejected regardless of other signals.
+
+		if fingerprintDenied {
+			continue // Payload said "this is NOT this service" → skip
+		}
+
+		matched := false
+		if fingerprintConfirmed {
+			matched = true // Highest confidence: payload identified itself
+		} else if ouiMatched {
+			matched = true // High confidence: hardware manufacturer matches
+		} else if hasUniquePort && len(openPorts) > 0 {
+			matched = true // Good confidence: unique port is open (e.g. 8006 = very likely PVE)
+		}
+		// If ONLY ambiguous ports are open (80, 443, 22...) with no OUI and no fingerprint → no match
+
+		if !matched {
+			continue
+		}
+
+		// Build result entry with proper human-readable name
+		ipv6Str := ""
+		if targetMAC != "" {
+			if hw, err := net.ParseMAC(targetMAC); err == nil && len(hw) == 6 {
+				eui64 := uip.ComputeEUI64(hw)
+				ipv6Str = "fe80::" + eui64
+			}
+		}
+		if _, v6Resolved, ok := LookupMDNSOSResolver(sig.Token); ok && v6Resolved != "" {
+			ipv6Str = v6Resolved
+		}
+
+		// Determine display name: existing cache name > signature DisplayName > token
+		entryName := sig.DisplayName
+		if cacheMap != nil {
+			if existing, exists := cacheMap[sig.Token]; exists && existing.Name != "" {
+				entryName = existing.Name
+			}
+		}
+
+		mu.Lock()
+		(*results)[sig.Token] = CacheEntry{
+			IP:              targetIP,
+			IPv6:            ipv6Str,
+			MAC:             targetMAC,
+			Name:            entryName,
+			Ports:           openPorts,
+			DiscoveryMethod: "targeted_fingerprint",
+			LastSeen:        time.Now(),
+		}
+		mu.Unlock()
+	}
 }
 
 // dialHost tests if a specific port is responsive on an IP within the timeout limit.
@@ -323,6 +312,7 @@ func parseARPCache(ifaceName string) map[string]string {
 }
 
 // peekServiceFingerprint performs targeted payload peeking to verify a service.
+// Returns the 3-letter token of the positively identified service, or "" if inconclusive.
 func peekServiceFingerprint(ip string, port int) string {
 	// A. Check database and special enterprise protocols first
 	switch port {
@@ -332,7 +322,7 @@ func peekServiceFingerprint(ip string, port int) string {
 			defer conn.Close()
 			_, _ = conn.Write([]byte("PING\r\n"))
 			buf := make([]byte, 64)
-			_ = conn.SetReadDeadline(time.Now().Add(150*time.Millisecond))
+			_ = conn.SetReadDeadline(time.Now().Add(150 * time.Millisecond))
 			n, err := conn.Read(buf)
 			if err == nil {
 				resp := string(buf[:n])
@@ -358,33 +348,106 @@ func peekServiceFingerprint(ip string, port int) string {
 		resp, err := client.Get(url)
 		if err == nil {
 			defer resp.Body.Close()
-			buf := make([]byte, 1024)
+			buf := make([]byte, 2048)
 			n, _ := io.ReadFull(resp.Body, buf)
 			bodyStr := strings.ToLower(string(buf[:n]))
 
-			// 1. Proxmox VE
-			if strings.Contains(bodyStr, "proxmox") || strings.Contains(bodyStr, "pve") {
+			// Proxmox VE
+			if strings.Contains(bodyStr, "proxmox") || (port == 8006 && strings.Contains(bodyStr, "pve")) {
 				return "pve"
 			}
-			// 2. Home Assistant
-			if strings.Contains(bodyStr, "home assistant") || strings.Contains(bodyStr, "hass") {
+			// Proxmox Backup Server (must check before generic proxmox)
+			if port == 8007 && strings.Contains(bodyStr, "proxmox") {
+				return "pbs"
+			}
+			// Home Assistant
+			if strings.Contains(bodyStr, "home assistant") || strings.Contains(bodyStr, "hass.io") {
 				return "hass"
 			}
-			// 3. Synology / NAS
-			if strings.Contains(bodyStr, "nextcloud") || strings.Contains(bodyStr, "synology") || strings.Contains(bodyStr, "dsm") || strings.Contains(bodyStr, "truenas") {
+			// Synology / NAS
+			if strings.Contains(bodyStr, "synology") || strings.Contains(bodyStr, "dsm") || strings.Contains(bodyStr, "truenas") || strings.Contains(bodyStr, "qnap") {
 				return "nas"
 			}
-			// 4. Elasticsearch
+			// Elasticsearch
 			if strings.Contains(bodyStr, "you know, for search") {
 				return "els"
 			}
-			// 5. Kubernetes API Server
+			// Kubernetes API Server
 			if port == 6443 && (strings.Contains(bodyStr, "forbidden") || strings.Contains(bodyStr, "unauthorized")) {
 				return "k8s"
 			}
-			// 6. Docker API
+			// Docker API
 			if (port == 2375 || port == 2376) && strings.Contains(bodyStr, "docker") {
 				return "dck"
+			}
+			// Portainer
+			if strings.Contains(bodyStr, "portainer") {
+				return "pot"
+			}
+			// Grafana
+			if strings.Contains(bodyStr, "grafana") {
+				return "mon"
+			}
+			// Jellyfin
+			if strings.Contains(bodyStr, "jellyfin") {
+				return "jly"
+			}
+			// Plex
+			if strings.Contains(bodyStr, "plex") && port == 32400 {
+				return "plx"
+			}
+			// Gitea / Forgejo / GitLab
+			if strings.Contains(bodyStr, "gitea") || strings.Contains(bodyStr, "forgejo") {
+				return "git"
+			}
+			if strings.Contains(bodyStr, "gitlab") {
+				return "git"
+			}
+			// UniFi Controller
+			if strings.Contains(bodyStr, "unifi") || strings.Contains(bodyStr, "ubiquiti") {
+				return "unf"
+			}
+			// Pi-hole / AdGuard
+			if strings.Contains(bodyStr, "pi-hole") || strings.Contains(bodyStr, "pihole") {
+				return "dns"
+			}
+			if strings.Contains(bodyStr, "adguard") {
+				return "dns"
+			}
+			// Reverse Proxies (nginx, traefik, caddy, haproxy)
+			if port == 81 && strings.Contains(bodyStr, "nginx proxy manager") {
+				return "rpx"
+			}
+			if strings.Contains(bodyStr, "traefik") {
+				return "rpx"
+			}
+			// MinIO
+			if strings.Contains(bodyStr, "minio") {
+				return "mio"
+			}
+			// n8n
+			if strings.Contains(bodyStr, "n8n") {
+				return "n8n"
+			}
+			// HashiCorp Vault
+			if strings.Contains(bodyStr, "vault") && port == 8200 {
+				return "val"
+			}
+			// Foundry VTT
+			if strings.Contains(bodyStr, "foundry") || strings.Contains(bodyStr, "virtual tabletop") {
+				return "fdy"
+			}
+			// Open WebUI
+			if strings.Contains(bodyStr, "open webui") || strings.Contains(bodyStr, "open-webui") {
+				return "owu"
+			}
+			// Nextcloud
+			if strings.Contains(bodyStr, "nextcloud") {
+				return "ncd"
+			}
+			// Paperless-ngx
+			if strings.Contains(bodyStr, "paperless-ngx") || strings.Contains(bodyStr, "paperless ngx") || (strings.Contains(bodyStr, "paperless") && strings.Contains(bodyStr, "document")) {
+				return "ppl"
 			}
 		}
 	}
