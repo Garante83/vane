@@ -74,8 +74,8 @@ Vane protects your network integrity by using **Targeted Active Verification**:
    Vane attempts TCP connects *only* on the ports defined by known service signatures for those specific target IPs (e.g., port `8006` for Proxmox VE or port `8123` for Home Assistant).
 3. **Payload Peeking:**
    If a port responds, Vane performs a lightweight, secure handshake to grab HTTP titles or protocol banners (e.g., checking for the Redis `+PONG` or Elasticsearch `"you know, for search"` response). This active probe gathers the critical data needed for precise, high-fidelity verification and mapping.
-4. **No Range Sweeping:**
-   There is no range-iteration logic in the codebase. If an IP does not already exist in your neighbor cache or manual configuration, Vane will never send a packet to it.
+4. **Smart Neighborhood Sweep (No Blind Range Iteration):**
+   Vane's active sweep (`--sweep` / `-w`) is a highly targeted process. Instead of blindly scanning the entire IP range of a subnet, it only sweeps the active devices already cached in your operating system's ARP table or manual registry. If an IP does not exist in your local neighbor cache, Vane will never send a probe to it, keeping the sweep completely silent and safe for corporate firewalls.
 
 ### Confidence-Based Matching (Anti-False-Positive Gate)
 Vane does **not** blindly report a service just because a generic port (like 80 or 443) is open. The matching engine requires **strong evidence** before it reports a discovery:
