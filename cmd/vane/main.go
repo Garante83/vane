@@ -244,6 +244,16 @@ func main() {
 			os.Exit(1)
 		}
 
+		// Resolve alias/index to real name if passed (e.g. "1" -> "eno1")
+		if ifaceName != "" {
+			state, err := netstate.GetInterfaceState(ifaceName)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "[vane] Error: %v\n", err)
+				os.Exit(1)
+			}
+			ifaceName = state.InterfaceName
+		}
+
 		err := sniff.PerformSniff(ifaceName)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[vane] Error: %v\n", err)
@@ -320,14 +330,22 @@ func main() {
 			ifaceName = t.Interface
 		}
 
+		// Resolve interface state once up front to support aliases/indices everywhere
+		state, err := netstate.GetInterfaceState(ifaceName)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "[vane] Error: %v\n", err)
+			os.Exit(1)
+		}
+		ifaceName = state.InterfaceName
+
 		var targetIP, targetMAC string
 		if targetSpec != "" {
 			if net.ParseIP(targetSpec) != nil {
 				targetIP = targetSpec
 			} else if t, isVane := uip.ExtractToken(targetSpec); isVane {
-				state, err := netstate.GetInterfaceState(t.Interface)
-				if err == nil {
-					resolved, errResolve := uip.ResolveTokenIP(t, state)
+				tState, errT := netstate.GetInterfaceState(t.Interface)
+				if errT == nil {
+					resolved, errResolve := uip.ResolveTokenIP(t, tState)
 					if errResolve == nil {
 						targetIP = resolved
 					}
@@ -350,13 +368,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		state, err := netstate.GetInterfaceState(ifaceName)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "[vane] Error: %v\n", err)
-			os.Exit(1)
-		}
-
-		err = handleDiscoverSubcommand(state.InterfaceName, persistent, sweepFlag, clearFlag, editFlag, targetIP, targetMAC)
+		err = handleDiscoverSubcommand(ifaceName, persistent, sweepFlag, clearFlag, editFlag, targetIP, targetMAC)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[vane] Error: %v\n", err)
 			os.Exit(1)
@@ -798,6 +810,25 @@ func handleDiscoverSubcommand(ifaceName string, persistent, sweepFlag, clearFlag
 		if targetIP != "" {
 			results, err = vssd.RunSingleTargetDiscovery(ifaceName, targetIP, targetMAC)
 		} else {
+			// Enforce root privileges on non-Windows systems using secure sudo self-re-execution for active sweeps
+			if runtime.GOOS != "windows" && os.Geteuid() != 0 {
+				if getSystemLanguage() == "de" {
+					fmt.Println("  \x1b[1;33m[!] root-Rechte für Nachbarschafts-Sweep benötigt. Starte neu mit 'sudo'...\x1b[0m")
+				} else {
+					fmt.Println("  \x1b[1;33m[!] root privileges required for neighborhood sweep. Relaunching with 'sudo'...\x1b[0m")
+				}
+
+				cmd := exec.Command("sudo", os.Args...)
+				cmd.Stdin = os.Stdin
+				cmd.Stdout = os.Stdout
+				cmd.Stderr = os.Stderr
+				errRun := cmd.Run()
+				if errRun != nil {
+					return fmt.Errorf("sudo re-execution failed: %w", errRun)
+				}
+				os.Exit(0)
+			}
+
 			results, err = vssd.RunTargetedDiscovery(ifaceName)
 		}
 		close(doneChan)
