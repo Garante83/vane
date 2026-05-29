@@ -319,10 +319,19 @@ func main() {
 
 		// Enforce root privileges on non-Windows systems using secure sudo self-re-execution for active sweeps
 		if sweepFlag && targetSpec == "" && runtime.GOOS != "windows" && os.Geteuid() != 0 {
-			if getSystemLanguage() == "de" {
-				fmt.Println("  \x1b[1;33m[!] root-Rechte für Nachbarschafts-Sweep benötigt. Starte neu mit 'sudo'...\x1b[0m")
-			} else {
-				fmt.Println("  \x1b[1;33m[!] root privileges required for neighborhood sweep. Relaunching with 'sudo'...\x1b[0m")
+			// Check if sudo requires a password (non-interactive check)
+			needsPassword := true
+			checkCmd := exec.Command("sudo", "-n", "true")
+			if errCheck := checkCmd.Run(); errCheck == nil {
+				needsPassword = false
+			}
+
+			if needsPassword {
+				if getSystemLanguage() == "de" {
+					fmt.Println("  \x1b[1;33m[!] root-Rechte für Nachbarschafts-Sweep benötigt. Starte neu mit 'sudo'...\x1b[0m")
+				} else {
+					fmt.Println("  \x1b[1;33m[!] root privileges required for neighborhood sweep. Relaunching with 'sudo'...\x1b[0m")
+				}
 			}
 
 			cmd := exec.Command("sudo", os.Args...)

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"os/signal"
 	"strings"
 	"syscall"
@@ -24,7 +25,30 @@ func PerformSniff(ifaceName string) error {
 	fd, err := syscall.Socket(syscall.AF_PACKET, syscall.SOCK_RAW, int(htons(syscall.ETH_P_ALL)))
 	if err != nil {
 		if os.IsPermission(err) {
-			return fmt.Errorf("raw socket capture requires root privileges. Please run with sudo (e.g. sudo vane sniff %s)", ifaceName)
+			// Check if sudo requires a password (non-interactive check)
+			needsPassword := true
+			checkCmd := exec.Command("sudo", "-n", "true")
+			if errCheck := checkCmd.Run(); errCheck == nil {
+				needsPassword = false
+			}
+
+			if needsPassword {
+				if getSystemLanguage() == "de" {
+					fmt.Println("  \x1b[1;33m[!] root-Rechte für Packet Sniffing benötigt. Starte neu mit 'sudo'...\x1b[0m")
+				} else {
+					fmt.Println("  \x1b[1;33m[!] root privileges required for packet sniffing. Relaunching with 'sudo'...\x1b[0m")
+				}
+			}
+
+			cmd := exec.Command("sudo", os.Args...)
+			cmd.Stdin = os.Stdin
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			errRun := cmd.Run()
+			if errRun != nil {
+				return fmt.Errorf("sudo re-execution failed: %w", errRun)
+			}
+			os.Exit(0)
 		}
 		return fmt.Errorf("failed to open raw socket: %w", err)
 	}
@@ -306,4 +330,14 @@ func printLog(proto, src, dst, detail string) {
 	defer UnlockOutput()
 
 	fmt.Printf("  %-8s  %s  %-15s  %-15s  %s\n", timeStr, paddedProto, src, dst, coloredDetail)
+}
+
+func getSystemLanguage() string {
+	for _, env := range []string{"LANG", "LC_ALL", "LC_MESSAGES"} {
+		val := os.Getenv(env)
+		if strings.HasPrefix(strings.ToLower(val), "de") {
+			return "de"
+		}
+	}
+	return "en"
 }

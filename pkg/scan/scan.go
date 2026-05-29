@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"runtime"
 	"sort"
 	"strings"
@@ -22,9 +23,33 @@ type ScanResult struct {
 
 // PerformScan executes a fast parallel targeted check of all hosts in the subnetwork range
 func PerformScan(ifaceName string) error {
-	// 1. Enforce root privileges on non-Windows systems for active subnetwork sweeps
+	// 1. Enforce root privileges on non-Windows systems using secure sudo self-re-execution
 	if runtime.GOOS != "windows" && os.Geteuid() != 0 {
-		return fmt.Errorf("root privileges required for active subnetwork sweep. Please run:\n  \x1b[1;33msudo vane scan %s\x1b[0m", ifaceName)
+		// Check if sudo requires a password (non-interactive check)
+		needsPassword := true
+		checkCmd := exec.Command("sudo", "-n", "true")
+		if errCheck := checkCmd.Run(); errCheck == nil {
+			needsPassword = false
+		}
+
+		if needsPassword {
+			if getSystemLanguage() == "de" {
+				fmt.Println("  \x1b[1;33m[!] root-Rechte für Subnetz-Sweep benötigt. Starte neu mit 'sudo'...\x1b[0m")
+			} else {
+				fmt.Println("  \x1b[1;33m[!] root privileges required for subnet sweep. Relaunching with 'sudo'...\x1b[0m")
+			}
+		}
+
+		// Re-execute current binary with sudo
+		cmd := exec.Command("sudo", os.Args...)
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		err := cmd.Run()
+		if err != nil {
+			return fmt.Errorf("sudo re-execution failed: %w", err)
+		}
+		os.Exit(0)
 	}
 
 	// 2. Locate interface and IP
@@ -445,4 +470,14 @@ func resolveVendor(mac string) string {
 		return name
 	}
 	return ""
+}
+
+func getSystemLanguage() string {
+	for _, env := range []string{"LANG", "LC_ALL", "LC_MESSAGES"} {
+		val := os.Getenv(env)
+		if strings.HasPrefix(strings.ToLower(val), "de") {
+			return "de"
+		}
+	}
+	return "en"
 }
