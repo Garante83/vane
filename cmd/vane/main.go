@@ -1201,34 +1201,13 @@ func runInteractiveCacheEditor(ifaceName string) error {
 				}
 				ip = resolved
 
-				// Auto-fill assistant logic for MAC and IPv6:
-				if tok, found := uip.ExtractToken(ipInput); found {
-					// Check if HostPart is hex MAC suffix
-					isHex := false
-					for _, c := range tok.HostPart {
-						if (c < '0' || c > '9') && c != '.' {
-							isHex = true
-							break
-						}
-					}
-					if len(tok.HostPart) >= 4 && !strings.Contains(tok.HostPart, ".") {
-						isHex = true
-					}
-					if !isHex && !strings.Contains(tok.HostPart, ".") {
-						if num, err := strconv.Atoi(tok.HostPart); err == nil && num > 255 {
-							isHex = true
-						}
-					}
-
-					if isHex {
-						if fullMAC, errMAC := lookupFullMACFromARP(ifaceName, tok.HostPart); errMAC == nil && fullMAC != "" {
-							autoMAC = fullMAC
-							if hwAddr, errHW := net.ParseMAC(fullMAC); errHW == nil {
-								eui := uip.ComputeEUI64(hwAddr)
-								if eui != "" {
-									autoIPv6 = "fe80::" + eui
-								}
-							}
+				// Auto-fill assistant: lookup IP in OS neighbor cache to resolve MAC and IPv6
+				if fullMAC, errMAC := lookupMACByIP(ifaceName, ip); errMAC == nil && fullMAC != "" {
+					autoMAC = fullMAC
+					if hwAddr, errHW := net.ParseMAC(fullMAC); errHW == nil {
+						eui := uip.ComputeEUI64(hwAddr)
+						if eui != "" {
+							autoIPv6 = "fe80::" + eui
 						}
 					}
 				}
@@ -1392,33 +1371,13 @@ func runInteractiveCacheEditor(ifaceName string) error {
 				}
 				entry.IP = resolved
 
-				// Auto-fill assistant logic for MAC and IPv6 during edit:
-				if tok, found := uip.ExtractToken(newIPInput); found {
-					isHex := false
-					for _, c := range tok.HostPart {
-						if (c < '0' || c > '9') && c != '.' {
-							isHex = true
-							break
-						}
-					}
-					if len(tok.HostPart) >= 4 && !strings.Contains(tok.HostPart, ".") {
-						isHex = true
-					}
-					if !isHex && !strings.Contains(tok.HostPart, ".") {
-						if num, err := strconv.Atoi(tok.HostPart); err == nil && num > 255 {
-							isHex = true
-						}
-					}
-
-					if isHex {
-						if fullMAC, errMAC := lookupFullMACFromARP(ifaceName, tok.HostPart); errMAC == nil && fullMAC != "" {
-							entry.MAC = fullMAC
-							if hwAddr, errHW := net.ParseMAC(fullMAC); errHW == nil {
-								eui := uip.ComputeEUI64(hwAddr)
-								if eui != "" {
-									entry.IPv6 = "fe80::" + eui
-								}
-							}
+				// Auto-fill assistant during edit: lookup IP in OS neighbor cache to resolve MAC and IPv6
+				if fullMAC, errMAC := lookupMACByIP(ifaceName, entry.IP); errMAC == nil && fullMAC != "" {
+					entry.MAC = fullMAC
+					if hwAddr, errHW := net.ParseMAC(fullMAC); errHW == nil {
+						eui := uip.ComputeEUI64(hwAddr)
+						if eui != "" {
+							entry.IPv6 = "fe80::" + eui
 						}
 					}
 				}
@@ -1532,7 +1491,7 @@ func saveSchema(path string, schema vssd.CacheSchema) {
 }
 
 func validateAndResolveIPInput(input, ifaceName string) (string, error) {
-	input = strings.TrimSpace(input)
+	input = strings.Trim(strings.TrimSpace(input), "\"'")
 	if input == "" {
 		return "", fmt.Errorf("IP address cannot be empty")
 	}
@@ -1560,24 +1519,17 @@ func validateAndResolveIPInput(input, ifaceName string) (string, error) {
 	return input, nil
 }
 
-func lookupFullMACFromARP(ifaceName, suffix string) (string, error) {
-	suffix = strings.ToLower(strings.ReplaceAll(suffix, ":", ""))
+func lookupMACByIP(ifaceName, ip string) (string, error) {
+	ip = strings.TrimSpace(ip)
 	if runtime.GOOS == "windows" {
 		cmd := exec.Command("powershell", "-NoProfile", "-Command",
-			fmt.Sprintf("Get-NetNeighbor -InterfaceAlias '%s' | Select-Object LinkLayerAddress", ifaceName))
+			fmt.Sprintf("Get-NetNeighbor -InterfaceAlias '%s' -IPAddress '%s' | Select-Object -ExpandProperty LinkLayerAddress", ifaceName, ip))
 		out, err := cmd.Output()
 		if err == nil {
-			lines := strings.Split(string(out), "\n")
-			for _, line := range lines {
-				line = strings.TrimSpace(line)
-				if line == "" {
-					continue
-				}
-				macClean := strings.ToLower(strings.ReplaceAll(line, "-", ":"))
-				cleanMac := strings.ReplaceAll(macClean, ":", "")
-				if strings.HasSuffix(cleanMac, suffix) || strings.Contains(cleanMac, suffix) {
-					return macClean, nil
-				}
+			mac := strings.TrimSpace(string(out))
+			mac = strings.ToLower(strings.ReplaceAll(mac, "-", ":"))
+			if mac != "" && len(mac) >= 12 {
+				return mac, nil
 			}
 		}
 		return "", fmt.Errorf("not found")
@@ -1598,12 +1550,12 @@ func lookupFullMACFromARP(ifaceName, suffix string) (string, error) {
 		if len(fields) < 6 {
 			continue
 		}
+		entryIP := fields[0]
 		mac := strings.ToLower(fields[3])
 		dev := fields[5]
 
-		if dev == ifaceName {
-			cleanMac := strings.ReplaceAll(mac, ":", "")
-			if strings.HasSuffix(cleanMac, suffix) || strings.Contains(cleanMac, suffix) {
+		if dev == ifaceName && entryIP == ip {
+			if mac != "" && mac != "00:00:00:00:00:00" {
 				return mac, nil
 			}
 		}
