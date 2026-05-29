@@ -317,6 +317,26 @@ func main() {
 			}
 		}
 
+		// Enforce root privileges on non-Windows systems using secure sudo self-re-execution for active sweeps
+		if sweepFlag && targetSpec == "" && runtime.GOOS != "windows" && os.Geteuid() != 0 {
+			if getSystemLanguage() == "de" {
+				fmt.Println("  \x1b[1;33m[!] root-Rechte für Nachbarschafts-Sweep benötigt. Starte neu mit 'sudo'...\x1b[0m")
+			} else {
+				fmt.Println("  \x1b[1;33m[!] root privileges required for neighborhood sweep. Relaunching with 'sudo'...\x1b[0m")
+			}
+
+			cmd := exec.Command("sudo", os.Args...)
+			cmd.Stdin = os.Stdin
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			errRun := cmd.Run()
+			if errRun != nil {
+				fmt.Fprintf(os.Stderr, "sudo re-execution failed: %v\n", errRun)
+				os.Exit(1)
+			}
+			os.Exit(0)
+		}
+
 		if ifaceName == "" {
 			ifaceName = getDefaultActiveInterface()
 		}
@@ -810,25 +830,6 @@ func handleDiscoverSubcommand(ifaceName string, persistent, sweepFlag, clearFlag
 		if targetIP != "" {
 			results, err = vssd.RunSingleTargetDiscovery(ifaceName, targetIP, targetMAC)
 		} else {
-			// Enforce root privileges on non-Windows systems using secure sudo self-re-execution for active sweeps
-			if runtime.GOOS != "windows" && os.Geteuid() != 0 {
-				if getSystemLanguage() == "de" {
-					fmt.Println("  \x1b[1;33m[!] root-Rechte für Nachbarschafts-Sweep benötigt. Starte neu mit 'sudo'...\x1b[0m")
-				} else {
-					fmt.Println("  \x1b[1;33m[!] root privileges required for neighborhood sweep. Relaunching with 'sudo'...\x1b[0m")
-				}
-
-				cmd := exec.Command("sudo", os.Args...)
-				cmd.Stdin = os.Stdin
-				cmd.Stdout = os.Stdout
-				cmd.Stderr = os.Stderr
-				errRun := cmd.Run()
-				if errRun != nil {
-					return fmt.Errorf("sudo re-execution failed: %w", errRun)
-				}
-				os.Exit(0)
-			}
-
 			results, err = vssd.RunTargetedDiscovery(ifaceName)
 		}
 		close(doneChan)
