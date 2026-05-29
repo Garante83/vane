@@ -1180,6 +1180,9 @@ func runInteractiveCacheEditor(ifaceName string) error {
 			nameInput = strings.TrimSpace(nameInput)
 
 			var ip string
+			var autoMAC string
+			var autoIPv6 string
+
 			for {
 				fmt.Print("    IPv4-Adresse (oder Vane-Notation, z. B. ...45): ")
 				ipInput, _ := reader.ReadString('\n')
@@ -1197,6 +1200,38 @@ func runInteractiveCacheEditor(ifaceName string) error {
 					continue
 				}
 				ip = resolved
+
+				// Auto-fill assistant logic for MAC and IPv6:
+				if tok, found := uip.ExtractToken(ipInput); found {
+					// Check if HostPart is hex MAC suffix
+					isHex := false
+					for _, c := range tok.HostPart {
+						if (c < '0' || c > '9') && c != '.' {
+							isHex = true
+							break
+						}
+					}
+					if len(tok.HostPart) >= 4 && !strings.Contains(tok.HostPart, ".") {
+						isHex = true
+					}
+					if !isHex && !strings.Contains(tok.HostPart, ".") {
+						if num, err := strconv.Atoi(tok.HostPart); err == nil && num > 255 {
+							isHex = true
+						}
+					}
+
+					if isHex {
+						if fullMAC, errMAC := lookupFullMACFromARP(ifaceName, tok.HostPart); errMAC == nil && fullMAC != "" {
+							autoMAC = fullMAC
+							if hwAddr, errHW := net.ParseMAC(fullMAC); errHW == nil {
+								eui := uip.ComputeEUI64(hwAddr)
+								if eui != "" {
+									autoIPv6 = "fe80::" + eui
+								}
+							}
+						}
+					}
+				}
 				break
 			}
 			if ip == "" {
@@ -1205,10 +1240,17 @@ func runInteractiveCacheEditor(ifaceName string) error {
 
 			var ipv6 string
 			for {
-				fmt.Print("    IPv6-Adresse (optional, oder Vane-Notation): ")
+				defaultPrompt := ""
+				if autoIPv6 != "" {
+					defaultPrompt = " [\x1b[90m" + autoIPv6 + "\x1b[0m]"
+				}
+				fmt.Printf("    IPv6-Adresse (optional, oder Vane-Notation)%s: ", defaultPrompt)
 				ipv6Input, _ := reader.ReadString('\n')
 				ipv6Input = strings.TrimSpace(ipv6Input)
 				if ipv6Input == "" {
+					if autoIPv6 != "" {
+						ipv6 = autoIPv6
+					}
 					break
 				}
 				resolved, err := validateAndResolveIPInput(ipv6Input, ifaceName)
@@ -1224,9 +1266,16 @@ func runInteractiveCacheEditor(ifaceName string) error {
 				break
 			}
 
-			fmt.Print("    MAC-Adresse (optional): ")
+			defaultMACPrompt := ""
+			if autoMAC != "" {
+				defaultMACPrompt = " [\x1b[90m" + autoMAC + "\x1b[0m]"
+			}
+			fmt.Printf("    MAC-Adresse (optional)%s: ", defaultMACPrompt)
 			mac, _ := reader.ReadString('\n')
 			mac = strings.TrimSpace(mac)
+			if mac == "" && autoMAC != "" {
+				mac = autoMAC
+			}
 
 			fmt.Print("    Offene Ports (kommagetrennt, z. B. 9000, 9443): ")
 			portsInput, _ := reader.ReadString('\n')
@@ -1342,6 +1391,37 @@ func runInteractiveCacheEditor(ifaceName string) error {
 					continue
 				}
 				entry.IP = resolved
+
+				// Auto-fill assistant logic for MAC and IPv6 during edit:
+				if tok, found := uip.ExtractToken(newIPInput); found {
+					isHex := false
+					for _, c := range tok.HostPart {
+						if (c < '0' || c > '9') && c != '.' {
+							isHex = true
+							break
+						}
+					}
+					if len(tok.HostPart) >= 4 && !strings.Contains(tok.HostPart, ".") {
+						isHex = true
+					}
+					if !isHex && !strings.Contains(tok.HostPart, ".") {
+						if num, err := strconv.Atoi(tok.HostPart); err == nil && num > 255 {
+							isHex = true
+						}
+					}
+
+					if isHex {
+						if fullMAC, errMAC := lookupFullMACFromARP(ifaceName, tok.HostPart); errMAC == nil && fullMAC != "" {
+							entry.MAC = fullMAC
+							if hwAddr, errHW := net.ParseMAC(fullMAC); errHW == nil {
+								eui := uip.ComputeEUI64(hwAddr)
+								if eui != "" {
+									entry.IPv6 = "fe80::" + eui
+								}
+							}
+						}
+					}
+				}
 				break
 			}
 
@@ -1478,4 +1558,55 @@ func validateAndResolveIPInput(input, ifaceName string) (string, error) {
 		return "", fmt.Errorf("invalid IPv4 or IPv6 address syntax")
 	}
 	return input, nil
+}
+
+func lookupFullMACFromARP(ifaceName, suffix string) (string, error) {
+	suffix = strings.ToLower(strings.ReplaceAll(suffix, ":", ""))
+	if runtime.GOOS == "windows" {
+		cmd := exec.Command("powershell", "-NoProfile", "-Command",
+			fmt.Sprintf("Get-NetNeighbor -InterfaceAlias '%s' | Select-Object LinkLayerAddress", ifaceName))
+		out, err := cmd.Output()
+		if err == nil {
+			lines := strings.Split(string(out), "\n")
+			for _, line := range lines {
+				line = strings.TrimSpace(line)
+				if line == "" {
+					continue
+				}
+				macClean := strings.ToLower(strings.ReplaceAll(line, "-", ":"))
+				cleanMac := strings.ReplaceAll(macClean, ":", "")
+				if strings.HasSuffix(cleanMac, suffix) || strings.Contains(cleanMac, suffix) {
+					return macClean, nil
+				}
+			}
+		}
+		return "", fmt.Errorf("not found")
+	}
+
+	data, err := os.ReadFile("/proc/net/arp")
+	if err != nil {
+		return "", err
+	}
+
+	lines := strings.Split(string(data), "\n")
+	for i := 1; i < len(lines); i++ {
+		line := strings.TrimSpace(lines[i])
+		if line == "" {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 6 {
+			continue
+		}
+		mac := strings.ToLower(fields[3])
+		dev := fields[5]
+
+		if dev == ifaceName {
+			cleanMac := strings.ReplaceAll(mac, ":", "")
+			if strings.HasSuffix(cleanMac, suffix) || strings.Contains(cleanMac, suffix) {
+				return mac, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("not found")
 }
