@@ -48,6 +48,22 @@ else
 	exit 1
 fi
 
+# 6. Test explain subcommand
+echo "  [+] Testing 'explain' command documentation and resolution..."
+if ./vane_smoke --help | grep -q "explain"; then
+	echo "      ✔ 'explain' subcommand documented in help screen!"
+else
+	echo "      ❌ 'explain' subcommand missing from help screen!"
+	exit 1
+fi
+
+if ./vane_smoke explain lo.1 | grep -q "UIP RESOLUTION ENGINE\|enp3s0\|lo"; then
+	echo "      ✔ 'explain' subcommand executed and resolved successfully!"
+else
+	echo "      ❌ 'explain' subcommand execution failed!"
+	exit 1
+fi
+
 echo ""
 echo "=================================================="
 echo "  ✔ INTEGRATION SMOKE TEST PASSED SUCCESSFULLY!    "

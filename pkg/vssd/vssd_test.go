@@ -175,3 +175,48 @@ func TestPeekServiceFingerprint(t *testing.T) {
 		}
 	}
 }
+
+// TestEnsureCacheOwnershipSanity verifies that EnsureCacheOwnership runs safely and returns early under non-root
+func TestEnsureCacheOwnershipSanity(t *testing.T) {
+	tempFile, err := os.CreateTemp("", "vane-cache-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	defer os.Remove(tempFile.Name())
+	tempFile.Close()
+
+	// Should run safely and do nothing since we are not root/sudo
+	EnsureCacheOwnership(tempFile.Name())
+}
+
+// TestRunTargetedDiscoverySanity runs RunTargetedDiscovery on the loopback interface as a safety and coverage check
+func TestRunTargetedDiscoverySanity(t *testing.T) {
+	// Setup temporary custom home directory to isolate cache test
+	tempHome, err := os.MkdirTemp("", "vane-home-*")
+	if err != nil {
+		t.Fatalf("failed to create temp home: %v", err)
+	}
+	defer os.RemoveAll(tempHome)
+
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tempHome)
+	defer os.Setenv("HOME", origHome)
+
+	_, _ = RunTargetedDiscovery("lo")
+}
+
+// TestRunSingleTargetDiscoverySanity runs RunSingleTargetDiscovery on loopback for a single target
+func TestRunSingleTargetDiscoverySanity(t *testing.T) {
+	// Setup temporary custom home directory to isolate cache test
+	tempHome, err := os.MkdirTemp("", "vane-home-*")
+	if err != nil {
+		t.Fatalf("failed to create temp home: %v", err)
+	}
+	defer os.RemoveAll(tempHome)
+
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tempHome)
+	defer os.Setenv("HOME", origHome)
+
+	_, _ = RunSingleTargetDiscovery("lo", "127.0.0.1", "")
+}

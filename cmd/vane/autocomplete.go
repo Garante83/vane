@@ -14,7 +14,7 @@ import (
 func handleAutocomplete(words []string) {
 	if len(words) <= 1 {
 		// Suggest main commands
-		fmt.Println("scan trace sniff send recv discover doc man help")
+		fmt.Println("scan trace sniff send recv discover explain doc man help")
 		return
 	}
 
@@ -22,12 +22,12 @@ func handleAutocomplete(words []string) {
 
 	// If we are at the second word (e.g. vane p[Tab])
 	if len(words) == 2 {
-		fmt.Println("scan trace sniff send recv discover doc man help")
+		fmt.Println("scan trace sniff send recv discover explain doc man help")
 		return
 	}
 
 	// Dynamic suggestions for commands that take an interface or target
-	if subCmd == "ping" || subCmd == "ssh" || subCmd == "scp" || subCmd == "curl" || subCmd == "scan" || subCmd == "trace" || subCmd == "sniff" || subCmd == "check" || subCmd == "discover" {
+	if subCmd == "ping" || subCmd == "ssh" || subCmd == "scp" || subCmd == "curl" || subCmd == "scan" || subCmd == "trace" || subCmd == "sniff" || subCmd == "check" || subCmd == "discover" || subCmd == "explain" {
 		// Only suggest on the first argument after the command (e.g., vane ping [Tab])
 		if len(words) == 3 {
 			var suggestions []string

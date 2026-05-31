@@ -172,3 +172,43 @@ make install-enterprise
 ```
 This sets the Go compiler tag `-tags nosweep`. In this build, any attempt to run `--sweep` or `-w` is intercepted and blocked with a policy notice. Passive discovery, manual editor entries, and single-host targeted lookups (`vane discover 192.168.178.140`) remain fully operational, ensuring a secure, compliant network tool.
 
+---
+
+## 5. Reverse Proxies & the Discovery Boundary
+
+A common homelab and enterprise pattern is to place all internal services behind a **reverse proxy** (such as Nginx Proxy Manager, Traefik, or Caddy). This is excellent practice from a security and certificate management perspective — and it is also the reason why those backend services will not be auto-detected by Vane's active fingerprinting.
+
+### Why fingerprinting fails behind a proxy
+
+Vane's payload peeking works by connecting directly to a host's IP and port and inspecting the HTTP response body for service-specific keywords (e.g. `proxmox`, `nextcloud`, `gitea`). A reverse proxy correctly intercepts any request that arrives without the expected `Host` header and either returns a generic error page or redirects the client — intentionally hiding the backend identity.
+
+```
+# What Vane does during a sweep:
+GET / HTTP/1.1
+Host: 192.168.178.203   ← direct IP, no domain
+
+# What Nextcloud expects:
+GET / HTTP/1.1
+Host: nextcloud.lan     ← reverse proxy routes this correctly
+```
+
+Because the proxy does exactly its job, the fingerprint receives no identifiable content and the service is not reported. **This is expected behavior, not a bug.**
+
+> [!NOTE]
+> Services with truly unique ports (e.g. Proxmox VE on `8006`, Portainer on `9443`, Jellyfin on `8096`) are still reliably detected because their ports are opened directly on the backend host — the proxy does not need to expose them separately for Vane to find them via TCP.
+
+### Recommended workflow for proxied setups
+
+For services that are exclusively accessible behind a reverse proxy, the correct approach is to populate the Vane cache **once** using the interactive editor, and then rely on silent cache resolution from that point on:
+
+```bash
+# Open the interactive cache editor
+vane discover --edit
+# or
+vane discover -e
+```
+
+Inside the editor you can register the known IP-to-token mappings for your proxied services (e.g. `ncd → 192.168.178.203`). Once saved, `vane discover` will resolve them instantly from the local cache without any network traffic.
+
+> [!IMPORTANT]
+> The combination of **automatic detection** (for services with unique ports or OUI-identifiable hardware) and **manual cache entries** (for services behind a reverse proxy) gives you the best of both worlds: zero-footprint daily resolution with accurate, complete service maps even in hardened proxy environments.

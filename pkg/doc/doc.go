@@ -113,6 +113,10 @@ func GetPages(lang string) []Page {
 					"    Unterstützt --persistent (-p) zum lautlosen Speichern im Secure-Cache,",
 					"    --sweep (-w) für aktive Subnetz-Sweeps, --specific (-s) zum Scannen einzelner IPs,",
 					"    --clear (-c) zum Wischen des Caches sowie --edit (-e) zur händischen Pflege.",
+					"",
+					"  📌 NOTATIONS-ERKLÄRER (vane explain <notation>):",
+					"    Löst eine Vane-Notation oder ein Shorthand (z. B. lan.1) Schritt für Schritt auf.",
+					"    Visualisiert Dual-Stack-Entscheidungen (IPv6 ULA vs IPv4 Fallback) und Pre-flight Peeking.",
 				},
 			},
 		}
@@ -215,6 +219,10 @@ func GetPages(lang string) []Page {
 				"    Supports --persistent (-p) to stealthily resolve mappings via secure cache,",
 				"    --sweep (-w) for active neighborhood sweeps, --specific (-s) to scan a single IP,",
 				"    --clear (-c) to purge cache, and --edit (-e) to manually edit registry entries.",
+				"",
+				"  📌 NOTATION EXPLAINER (vane explain <notation>):",
+				"    Resolves any Vane notation or shorthand (e.g. lan.1) step-by-step with details.",
+				"    Visualizes dual-stack routing choices (IPv6 ULA vs IPv4 fallback) and pre-flight peeking.",
 			},
 		},
 	}

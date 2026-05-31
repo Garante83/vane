@@ -3,7 +3,9 @@ package vssd
 import (
 	"encoding/json"
 	"os"
+	"os/user"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -30,9 +32,22 @@ var cacheMutex sync.RWMutex
 
 // GetCachePath returns the absolute path of the local Vane cache file.
 func GetCachePath() (string, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
+	home := os.Getenv("HOME")
+	if home == "" || home == "/root" {
+		if sudoUser := os.Getenv("SUDO_USER"); sudoUser != "" {
+			if _, err := os.Stat("/home/" + sudoUser); err == nil {
+				home = "/home/" + sudoUser
+			} else if _, err := os.Stat("/Users/" + sudoUser); err == nil {
+				home = "/Users/" + sudoUser
+			}
+		}
+	}
+	if home == "" {
+		var err error
+		home, err = os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
 	}
 	return filepath.Join(home, ".config", "vane", "cache.json"), nil
 }
@@ -113,7 +128,36 @@ func UpdateCache(iface, token string, entry CacheEntry) error {
 	}
 
 	// Write the file strictly with owner-only read/write permissions (0600)
-	return os.WriteFile(path, newData, 0600)
+	if err := os.WriteFile(path, newData, 0600); err != nil {
+		return err
+	}
+
+	// Restore correct user ownership if run under sudo
+	EnsureCacheOwnership(path)
+
+	return nil
+}
+
+// EnsureCacheOwnership checks if we are running under sudo and safely restores
+// correct file and directory ownership to the non-root SUDO_USER.
+func EnsureCacheOwnership(path string) {
+	if os.Geteuid() != 0 {
+		return
+	}
+	sudoUser := os.Getenv("SUDO_USER")
+	if sudoUser == "" {
+		return
+	}
+	u, err := user.Lookup(sudoUser)
+	if err != nil {
+		return
+	}
+	uid, _ := strconv.Atoi(u.Uid)
+	gid, _ := strconv.Atoi(u.Gid)
+
+	dir := filepath.Dir(path)
+	_ = os.Chown(path, uid, gid)
+	_ = os.Chown(dir, uid, gid)
 }
 
 // LoadCacheForInterface reads all cached service mappings for a given network interface.

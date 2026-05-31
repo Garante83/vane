@@ -20,6 +20,7 @@ type Translation struct {
 	HelpRecv         string
 	HelpSniff        string
 	HelpDiscover     string
+	HelpExplain      string
 	HelpManual       string
 	HelpMatrix       string
 	ConvertULA       string
@@ -48,6 +49,7 @@ var de = Translation{
 	HelpRecv:         "  vane recv [--port <port>]       Empfängt eine Datei hochperformant & verschlüsselt.",
 	HelpSniff:        "  vane sniff [interface]          Liest HTTP & DNS Anfragen auf dem Interface live mit.",
 	HelpDiscover:     "  vane discover [iface] [flags]   Sucht nach bekannten Services im LAN (Proxmox, NAS, Hass, Pi).",
+	HelpExplain:      "  vane explain <notation>         Löst eine Vane-Notation detailliert Schritt für Schritt auf.",
 	HelpManual:       "  vane doc / man                  Öffnet das interaktive TUI-Handbuch (System-Dokumentation).",
 	HelpMatrix:       "  vane                            Zeigt die Local Network Interface Matrix.",
 	ConvertULA:       "-> ULA (Intern):  %s%s\n",
@@ -76,6 +78,7 @@ var en = Translation{
 	HelpRecv:         "  vane recv [--port <port>]        Receives a file with high performance & encryption.",
 	HelpSniff:        "  vane sniff [interface]           Sniffs live HTTP & DNS requests on the interface.",
 	HelpDiscover:     "  vane discover [iface] [flags]    Discovers known services in the LAN (Proxmox, NAS, Hass, Pi).",
+	HelpExplain:      "  vane explain <notation>          Resolves a Vane notation step-by-step with details.",
 	HelpManual:       "  vane doc / man                  Opens the interactive TUI manual (system documentation).",
 	HelpMatrix:       "  vane                             Shows the Local Network Interface Matrix.",
 	ConvertULA:       "-> ULA (Internal): %s%s\n",

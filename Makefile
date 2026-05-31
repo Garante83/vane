@@ -1,12 +1,15 @@
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "v1.0.0")
+LDFLAGS = -s -w -X main.Version=$(VERSION)
+
 .PHONY: build build-enterprise run clean install install-enterprise uninstall release test
 
 # Standardaktion: Kompiliert das Projekt in die ausführbare Datei 'vane' (Home/Private-Modus mit Sweep)
 build:
-	go build -o vane ./cmd/vane
+	go build -ldflags "$(LDFLAGS)" -o vane ./cmd/vane
 
 # Enterprise-Aktion: Kompiliert das Projekt OHNE aktive Netzwerk-Sweeps (Unternehmensfreundlich)
 build-enterprise:
-	go build -tags nosweep -o vane ./cmd/vane
+	go build -tags nosweep -ldflags "$(LDFLAGS)" -o vane ./cmd/vane
 
 # Führt alle Unit-Tests, Integrations-Smoke-Tests und Go Report Card Qualitätsprüfungen aus
 test:
@@ -47,13 +50,13 @@ release: test
 	@echo "[vane] Kompiliere Cross-Plattform-Releases..."
 	@mkdir -p dist
 	# Linux
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o dist/vane-linux-amd64 ./cmd/vane
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o dist/vane-linux-arm64 ./cmd/vane
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="$(LDFLAGS)" -o dist/vane-linux-amd64 ./cmd/vane
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="$(LDFLAGS)" -o dist/vane-linux-arm64 ./cmd/vane
 	# macOS
-	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o dist/vane-darwin-amd64 ./cmd/vane
-	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o dist/vane-darwin-arm64 ./cmd/vane
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="$(LDFLAGS)" -o dist/vane-darwin-amd64 ./cmd/vane
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags="$(LDFLAGS)" -o dist/vane-darwin-arm64 ./cmd/vane
 	# Windows
-	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o dist/vane-windows-amd64.exe ./cmd/vane
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="$(LDFLAGS)" -o dist/vane-windows-amd64.exe ./cmd/vane
 	@echo "[vane] Alle Binaries erfolgreich in 'dist/' erstellt!"
 
 # Bereinigt lokale kompilierte Artefakte

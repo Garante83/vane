@@ -30,6 +30,7 @@ func TestResolveVendor(t *testing.T) {
 	}{
 		{mac: "B8:27:EB:12:34:56", expected: "Raspberry Pi"},
 		{mac: "08:00:27:12:34:56", expected: "VirtualBox"},
+		{mac: "bc:24:11:00:11:22", expected: "Proxmox Server Solutions"},
 		{mac: "11:22:33:44:55:66", expected: ""},
 	}
 

@@ -336,7 +336,7 @@ func peekServiceFingerprint(ip string, port int) string {
 
 	// B. Standard HTTP/HTTPS peeking
 	client := &http.Client{
-		Timeout: 150 * time.Millisecond,
+		Timeout: 400 * time.Millisecond,
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		},

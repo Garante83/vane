@@ -395,6 +395,8 @@ func TestIsSemanticToken(t *testing.T) {
 		{"nas", true},
 		{"hass", true},
 		{"pi", true},
+		{"pve.2", true},
+		{"pve-2", true},
 		{"gw", false},
 		{"router", false},
 		{"33", false},

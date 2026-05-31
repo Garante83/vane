@@ -262,7 +262,7 @@ var Signatures = []ServiceSignature{
 	{
 		Token:          "kam",
 		DisplayName:    "IP-Kamera",
-		Ports:          []int{80, 443, 554, 8000},
+		Ports:          []int{80, 443, 554},
 		MDNSNames:      []string{"camera", "cam", "nvr", "ip-camera", "synology-camera"},
 		MACOUIPrefixes: []string{"00:1a:07", "00:40:8c", "00:0f:7c"}, // Hikvision, Axis, Dahua OUIs
 	},
