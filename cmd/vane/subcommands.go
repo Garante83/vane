@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -13,6 +14,7 @@ import (
 
 	"vane/pkg/netstate"
 	"vane/pkg/peeker"
+	"vane/pkg/transfer"
 	"vane/pkg/uip"
 	"vane/pkg/vssd"
 )
@@ -270,8 +272,60 @@ func getSpelledOutNameCustom(token string, entry vssd.CacheEntry) string {
 	return getSpelledOutName(token)
 }
 
-func handleDiscoverSubcommand(ifaceName string, persistent, sweepFlag, clearFlag, editFlag bool, targetIP, targetMAC string) error {
-	// 1. Cache Clearing Action
+func handleDiscoverSubcommand(ifaceName string, persistent, sweepFlag, clearFlag, editFlag bool, targetIP, targetMAC string, exportFlag bool, importCode string) error {
+	// 1.1 Cache Importing Action
+	if importCode != "" {
+		registryData, err := transfer.PerformRegistryReceive("8484")
+		if err != nil {
+			return err
+		}
+		added, demoted, err := vssd.MergeIncomingRegistry(registryData, ifaceName)
+		if err != nil {
+			return err
+		}
+		if getSystemLanguage() == "de" {
+			fmt.Printf("  \x1b[1;32m✔ Registry erfolgreich synchronisiert! %d Einträge hinzugefügt/aktualisiert, %d Einträge als Konflikt-Alias demotiert.\x1b[0m\n", added, demoted)
+		} else {
+			fmt.Printf("  \x1b[1;32m✔ Registry successfully synchronized! %d entries added/updated, %d entries demoted as conflict aliases.\x1b[0m\n", added, demoted)
+		}
+		return nil
+	}
+
+	// 1.2 Cache Exporting Action
+	if exportFlag {
+		localMap, err := vssd.LoadCacheForInterface(ifaceName)
+		if err != nil {
+			return err
+		}
+		if len(localMap) == 0 {
+			if getSystemLanguage() == "de" {
+				return fmt.Errorf("dein lokaler Registry-Cache für Interface %s ist leer. Es gibt nichts zu exportieren", ifaceName)
+			}
+			return fmt.Errorf("your local registry cache for interface %s is empty. Nothing to export", ifaceName)
+		}
+		registryData, err := json.Marshal(localMap)
+		if err != nil {
+			return err
+		}
+
+		code := ""
+		for i := 2; i < len(os.Args)-1; i++ {
+			if os.Args[i] == "--code" || os.Args[i] == "-c" {
+				code = os.Args[i+1]
+				break
+			}
+		}
+		if code == "" {
+			if getSystemLanguage() == "de" {
+				return fmt.Errorf("bitte gib den Empfänger-Code an (z. B. vane discover --export --code 192.168.178.50#1234-5678)")
+			}
+			return fmt.Errorf("please specify the receiver pairing code (e.g. vane discover --export --code 192.168.178.50#1234-5678)")
+		}
+
+		return transfer.PerformRegistrySend(registryData, code)
+	}
+
+	// 1.3 Cache Clearing Action
 	if clearFlag {
 		path, err := vssd.GetCachePath()
 		if err != nil {

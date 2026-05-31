@@ -278,13 +278,15 @@ func main() {
 		os.Exit(0)
 	}
 
-	// 2.95 Subcommand: Discover (vane discover [interface] [--persistent] [--sweep] [--specific IP] [--clear] [--edit])
+	// 2.95 Subcommand: Discover (vane discover [interface] [--persistent] [--sweep] [--specific IP] [--clear] [--edit] [--export] [--import CODE])
 	if os.Args[1] == "discover" {
 		ifaceName := ""
 		persistent := false
 		sweepFlag := false
 		clearFlag := false
 		editFlag := false
+		exportFlag := false
+		importCode := ""
 
 		// Parse options
 		targetSpec := ""
@@ -303,6 +305,13 @@ func main() {
 				clearFlag = true
 			} else if arg == "--edit" || arg == "-e" {
 				editFlag = true
+			} else if arg == "--export" || arg == "-x" {
+				exportFlag = true
+			} else if arg == "--import" || arg == "-i" {
+				if i+1 < len(os.Args) {
+					importCode = os.Args[i+1]
+					i++
+				}
 			} else if !strings.HasPrefix(arg, "-") {
 				if strings.Contains(arg, "|>") || strings.Contains(arg, "...") || net.ParseIP(arg) != nil {
 					targetSpec = arg
@@ -406,9 +415,9 @@ func main() {
 			}
 		}
 
-		// Handle editor and clear actions immediately (independent of active interface state)
-		if clearFlag || editFlag {
-			err := handleDiscoverSubcommand(ifaceName, persistent, sweepFlag, clearFlag, editFlag, targetIP, targetMAC)
+		// Handle editor, clear, export and import actions immediately (independent of active interface state)
+		if clearFlag || editFlag || exportFlag || importCode != "" {
+			err := handleDiscoverSubcommand(ifaceName, persistent, sweepFlag, clearFlag, editFlag, targetIP, targetMAC, exportFlag, importCode)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "[vane] Error: %v\n", err)
 				os.Exit(1)
@@ -421,7 +430,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		err = handleDiscoverSubcommand(ifaceName, persistent, sweepFlag, clearFlag, editFlag, targetIP, targetMAC)
+		err = handleDiscoverSubcommand(ifaceName, persistent, sweepFlag, clearFlag, editFlag, targetIP, targetMAC, exportFlag, importCode)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[vane] Error: %v\n", err)
 			os.Exit(1)

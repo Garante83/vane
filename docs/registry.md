@@ -97,3 +97,12 @@ Since the VSSD cache stores sensitive local infrastructure IPs, MAC addresses, a
     vane discover -c
     ```
     This completely deletes the cache file, leaving no trace behind.
+
+---
+
+## 6. Distributed P2P Registry Mirroring
+
+Vane allows you to export your curated registry maps from one master machine and import them securely onto other client devices in your local network using ephemeral TLS 1.3 tunnels. 
+
+See the [Vane Service Discovery Manual](discovery.md#6-secure-registry-mirroring-export--import) for full usage instructions, command flags, and details on Vane's automated "Hackordnung" conflict resolution engine.
+

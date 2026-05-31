@@ -191,3 +191,99 @@ func LoadCacheForInterface(iface string) (InterfaceMap, error) {
 
 	return ifaceMap, nil
 }
+
+// MergeIncomingRegistry takes incoming JSON registry data, decodes it, and merges it with the local interface cache.
+// It prioritizes the incoming master registry. If a service key already exists, but represents a different device
+// (different IP or MAC), the existing local entry is demoted to a numbered alias (e.g. pve.2) to prevent data loss.
+// It returns the number of added/updated entries, demoted entries, and any error encountered.
+func MergeIncomingRegistry(incomingData []byte, iface string) (added int, demoted int, err error) {
+	var incomingMap InterfaceMap
+	if err := json.Unmarshal(incomingData, &incomingMap); err != nil {
+		return 0, 0, err
+	}
+
+	cacheMutex.Lock()
+	defer cacheMutex.Unlock()
+
+	path, err := GetCachePath()
+	if err != nil {
+		return 0, 0, err
+	}
+
+	// Ensure parent configuration directory exists
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return 0, 0, err
+	}
+
+	schema := make(CacheSchema)
+	if _, err := os.Stat(path); err == nil {
+		data, readErr := os.ReadFile(path)
+		if readErr == nil {
+			_ = json.Unmarshal(data, &schema)
+		}
+	}
+
+	if _, exists := schema[iface]; !exists {
+		schema[iface] = make(InterfaceMap)
+	}
+
+	localMap := schema[iface]
+
+	for token, incomingEntry := range incomingMap {
+		existingEntry, exists := localMap[token]
+		if !exists {
+			// Brand new service entry, just write it
+			incomingEntry.LastSeen = time.Now()
+			localMap[token] = incomingEntry
+			added++
+			continue
+		}
+
+		// Conflict check: check if it is the same physical device (same IP or same MAC)
+		sameDevice := false
+		if incomingEntry.IP == existingEntry.IP {
+			sameDevice = true
+		} else if incomingEntry.MAC != "" && existingEntry.MAC != "" && incomingEntry.MAC == existingEntry.MAC {
+			sameDevice = true
+		}
+
+		if sameDevice {
+			// Overwrite the existing entry with the incoming master entry (Master wins)
+			incomingEntry.LastSeen = time.Now()
+			localMap[token] = incomingEntry
+			added++
+		} else {
+			// Different physical device! Demote the local existing entry to a numbered alias (e.g. token.2)
+			suffix := 2
+			for {
+				alias := token + "." + strconv.Itoa(suffix)
+				if _, taken := localMap[alias]; !taken {
+					localMap[alias] = existingEntry
+					demoted++
+					break
+				}
+				suffix++
+			}
+
+			// Place the new master entry in the primary slot
+			incomingEntry.LastSeen = time.Now()
+			localMap[token] = incomingEntry
+			added++
+		}
+	}
+
+	schema[iface] = localMap
+
+	newData, err := json.MarshalIndent(schema, "", "  ")
+	if err != nil {
+		return 0, 0, err
+	}
+
+	if err := os.WriteFile(path, newData, 0600); err != nil {
+		return 0, 0, err
+	}
+
+	EnsureCacheOwnership(path)
+	return added, demoted, nil
+}

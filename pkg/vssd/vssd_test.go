@@ -220,3 +220,80 @@ func TestRunSingleTargetDiscoverySanity(t *testing.T) {
 
 	_, _ = RunSingleTargetDiscovery("lo", "127.0.0.1", "")
 }
+
+func TestMergeIncomingRegistry(t *testing.T) {
+	tempHome, err := os.MkdirTemp("", "vane-home-*")
+	if err != nil {
+		t.Fatalf("failed to create temp home: %v", err)
+	}
+	defer os.RemoveAll(tempHome)
+
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tempHome)
+	defer os.Setenv("HOME", origHome)
+
+	iface := "eno1"
+
+	// 1. Seed existing local registry cache entry
+	entryLocal := CacheEntry{
+		IP:              "192.168.178.50",
+		MAC:             "aa:bb:cc:dd:ee:01",
+		DiscoveryMethod: "passive",
+		Name:            "Proxmox Primary",
+	}
+	err = UpdateCache(iface, "pve", entryLocal)
+	if err != nil {
+		t.Fatalf("failed to seed cache: %v", err)
+	}
+
+	// 2. Perform merge with an incoming registry map (JSON bytes)
+	// Entry 'pve' has a different IP (conflict).
+	// Entry 'nas' is brand new.
+	incomingJSON := `{
+		"pve": {
+			"ip": "192.168.178.60",
+			"mac": "aa:bb:cc:dd:ee:02",
+			"discovery_method": "active",
+			"name": "New Proxmox Master"
+		},
+		"nas": {
+			"ip": "192.168.178.99",
+			"mac": "aa:bb:cc:dd:ee:99",
+			"discovery_method": "passive",
+			"name": "Local Storage"
+		}
+	}`
+
+	added, demoted, err := MergeIncomingRegistry([]byte(incomingJSON), iface)
+	if err != nil {
+		t.Fatalf("MergeIncomingRegistry failed: %v", err)
+	}
+
+	if added != 2 {
+		t.Errorf("expected 2 added entries, got %d", added)
+	}
+	if demoted != 1 {
+		t.Errorf("expected 1 demoted entry, got %d", demoted)
+	}
+
+	// 3. Verify merged cache entries
+	merged, err := LoadCacheForInterface(iface)
+	if err != nil {
+		t.Fatalf("failed to load merged cache: %v", err)
+	}
+
+	// 'pve' should be the incoming one (192.168.178.60)
+	if pve, ok := merged["pve"]; !ok || pve.IP != "192.168.178.60" {
+		t.Errorf("expected primary 'pve' to be incoming IP '192.168.178.60', got %v", pve)
+	}
+
+	// 'pve.2' should exist and be the local seeded one (192.168.178.50)
+	if pve2, ok := merged["pve.2"]; !ok || pve2.IP != "192.168.178.50" {
+		t.Errorf("expected demoted 'pve.2' to have seeded IP '192.168.178.50', got %v", pve2)
+	}
+
+	// 'nas' should be the incoming one (192.168.178.99)
+	if nas, ok := merged["nas"]; !ok || nas.IP != "192.168.178.99" {
+		t.Errorf("expected brand new 'nas' to be '192.168.178.99', got %v", nas)
+	}
+}

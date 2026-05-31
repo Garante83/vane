@@ -212,3 +212,42 @@ Inside the editor you can register the known IP-to-token mappings for your proxi
 
 > [!IMPORTANT]
 > The combination of **automatic detection** (for services with unique ports or OUI-identifiable hardware) and **manual cache entries** (for services behind a reverse proxy) gives you the best of both worlds: zero-footprint daily resolution with accurate, complete service maps even in hardened proxy environments.
+
+---
+
+## 6. Secure Registry Mirroring (Export & Import)
+
+To easily distribute your curated service list between different machines (e.g., syncing mappings from your workstation to your laptop), Vane includes a cryptographically secure, peer-to-peer registry mirroring mechanism:
+
+```
+[Master Machine]  ──(TLS 1.3 / Ephemeral pairing code)──>  [Client Machine]
+ (vane discover -x)                                         (vane discover -i)
+```
+
+### A. Exporting the Registry (Sender)
+To share your local service mappings on a specific interface, start the export command:
+```bash
+vane discover --export --code <receiver-ip>#<receiver-code>
+# or using shorthands:
+vane discover -x -c <receiver-ip>#<receiver-code>
+```
+This reads your local interface map, marshals it, and securely streams it via TLS 1.3.
+
+### B. Importing the Registry (Receiver)
+To stand by and receive the master's registry, run the import listener:
+```bash
+vane discover --import
+# or
+vane discover -i
+```
+Vane will open a secure, temporary listener on port `8484`, generate an ephemeral pairing code, and display the sender command to run on the master machine.
+
+### C. Precedence & Conflict Resolution ("Hackordnung")
+When the client receives the master's registry, it runs an intelligent merge algorithm to prevent data loss or duplicate conflicts:
+
+1.  **New Services:** If an incoming service token does not exist locally, it is written directly to the client's cache.
+2.  **Identical Devices:** If a service key exists on both machines and matches the **exact same physical device** (same IP or same MAC), the client automatically updates its local entry with the master's metadata.
+3.  **Conflict Aliases:** If the incoming service key (e.g., `pve`) exists but points to a **different physical device** (different IP/MAC), the client executes the Vane Hackordnung:
+    *   The incoming master entry is granted primary ownership of the main token key (`pve`).
+    *   The conflicting local client entry is demoted to the next available numbered slot (e.g., `pve.2`, `pve.3`), ensuring both entries are preserved and distinguishable.
+
