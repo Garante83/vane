@@ -5,6 +5,11 @@
 
 Vane includes a low-level, high-fidelity live packet sniffer (`vane sniff [interface]`). This module is built for network administrators who need real-time visibility into active protocols, domain lookups, and unencrypted web requests traversing an interface, without having to spawn heavy, complex tools like Wireshark or tcpdump.
 
+## 📋 Table of Contents
+* [1. Raw Socket Architecture & Privilege Gates](#1-raw-socket-architecture--privilege-gates)
+* [2. On-the-Fly Protocol Decoding](#2-on-the-fly-protocol-decoding)
+* [3. Operating the Sniffer](#3-operating-the-sniffer)
+
 ---
 
 ## 1. Raw Socket Architecture & Privilege Gates

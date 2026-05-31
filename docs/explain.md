@@ -5,6 +5,12 @@
 
 The `vane explain` command is Vane's dedicated **interactive diagnostics and dry-run engine**. It is designed to demystify the Unified IP Notation (UIP) resolution process for administrators and developers by providing a step-by-step audit trail of how any notation resolves to a physical IP and port.
 
+## 📋 Table of Contents
+* [1. What does `vane explain` do?](#1-what-does-vane-explain-do)
+* [2. Dynamic Shorthand Parsing](#2-dynamic-shorthand-parsing)
+* [3. Step-by-Step Resolution Example](#3-step-by-step-resolution-example)
+* [4. Key Diagnostic Use Cases](#4-key-diagnostic-use-cases)
+
 ---
 
 ## 1. What does `vane explain` do?

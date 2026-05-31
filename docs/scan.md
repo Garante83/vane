@@ -7,6 +7,13 @@ Vane includes a built-in, ultra-fast, parallelized TCP subnet sweeper (`vane sca
 
 It queries system configuration tables, computes active IP ranges, and performs non-privileged concurrent sweeps, outputting ready-to-copy dynamic Vane tokens for instant proxy routing.
 
+## 📋 Table of Contents
+* [1. Automated Network Segment Calculations](#1-automated-network-segment-calculations)
+* [2. Ultra-Fast Concurrent Verification](#2-ultra-fast-concurrent-verification)
+* [3. High-Fidelity Vendor and Token Resolution](#3-high-fidelity-vendor-and-token-resolution)
+* [4. Visual Dashboard & Usage](#4-visual-dashboard--usage)
+* [5. Security & Enterprise Tag (nosweep)](#5-security--enterprise-tag-nosweep)
+
 ---
 
 ## 1. Automated Network Segment Calculations

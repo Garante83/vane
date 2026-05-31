@@ -7,6 +7,11 @@ The Unified IP (UIP) parser is one of Vane's most innovative features. It allows
 
 This guide explains the syntax, underlying mathematics, and EUI-64 autoconfiguration rules that drive the UIP engine.
 
+## 📋 Table of Contents
+* [1. The UIP Token Syntax](#1-the-uip-token-syntax)
+* [2. IPv4 Resolution Rules (Dot Notation)](#2-ipv4-resolution-rules-dot-notation)
+* [3. IPv6 Link-Local & EUI-64 Autoconfiguration](#3-ipv6-link-local--eui-64-autoconfiguration)
+
 ---
 
 ## 1. The UIP Token Syntax

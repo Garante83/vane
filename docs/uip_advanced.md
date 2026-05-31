@@ -5,6 +5,11 @@
 
 This document details the advanced inner workings of Vane's Unified IP Notation (UIP) engine. It is written for network administrators and developers who need to understand how the parser translates shorthand tokens into raw, validated network addresses under complex dual-stack routing environments and failure states.
 
+## 📋 Table of Contents
+* [1. The Address Resolution Decision Tree](#1-the-address-resolution-decision-tree)
+* [2. Advanced Direction Modifiers](#2-advanced-direction-modifiers)
+* [3. High-Fidelity Edge-Case Safeguards](#3-high-fidelity-edge-case-safeguards)
+
 ---
 
 ## 1. The Address Resolution Decision Tree

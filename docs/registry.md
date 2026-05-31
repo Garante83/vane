@@ -5,6 +5,14 @@
 
 The VSSD (Vane Semi-Static Discovery) Cache is not just a static display table—it is the **dynamic service registry and local DNS engine** of Vane. By connecting passive neighbor discovery, manual administrative entries, and system command integration, Vane allows you to reference complex infrastructure using ultra-short service aliases embedded in a unified, consistent notation.
 
+## 📋 Table of Contents
+* [1. The Core Concept: A Local Service Directory](#1-the-core-concept-a-local-service-directory)
+* [2. The Power of Unified Service Notation](#2-the-power-of-unified-service-notation)
+* [3. Tool-Wide Integration (Synergy Examples)](#3-tool-wide-integration-synergy-examples)
+* [4. The Interactive TUI Cache Editor (`vane discover -e`)](#4-the-interactive-tui-cache-editor-vane-discover--e)
+* [5. Security & Cache Storage Internals](#5-security--cache-storage-internals)
+* [6. Distributed P2P Registry Mirroring](#6-distributed-p2p-registry-mirroring)
+
 ---
 
 ## 1. The Core Concept: A Local Service Directory

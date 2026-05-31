@@ -5,6 +5,11 @@
 
 Vane includes a high-performance, cryptographically secured file transfer protocol (`vane send` and `vane recv`). This module is built for network administrators and users who need to transfer sensitive files (like configuration backups, database dumps, or diagnostic logs) directly between two hosts without relying on external cloud storage, third-party servers, or insecure plain-text tools like netcat.
 
+## 📋 Table of Contents
+* [1. Zero-Trust Handshake & Pairing Codes](#1-zero-trust-handshake--pairing-codes)
+* [2. Cryptographic Security & TLS 1.3](#2-cryptographic-security--tls-1-3)
+* [3. How to Execute a Transfer](#3-how-to-execute-a-transfer)
+
 ---
 
 ## 1. Zero-Trust Handshake & Pairing Codes

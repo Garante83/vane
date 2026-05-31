@@ -7,6 +7,12 @@ Vane includes a real-time, interactive latency path tracer (`vane trace [target]
 
 It provides network administrators and engineers with a highly visual, real-time diagnostic dashboard to pinpoint exactly which intermediate gateway or routing hop is introducing packet loss or latency spikes.
 
+## 📋 Table of Contents
+* [1. Path Hop Discovery & Fallbacks](#1-path-hop-discovery--fallbacks)
+* [2. Multi-Threaded Real-Time Latency Probing](#2-multi-threaded-real-time-latency-probing)
+* [3. High-Fidelity Terminal Sparklines](#3-high-fidelity-terminal-sparklines)
+* [4. Visual Dashboard & Execution](#4-visual-dashboard--execution)
+
 ---
 
 ## 1. Path Hop Discovery & Fallbacks

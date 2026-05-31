@@ -6,6 +6,14 @@
 
 Vane is designed from the ground up as a defensive, network-safe administration tool. Unlike standard diagnostic utilities that perform aggressive, high-noise subnet sweeps (which frequently trigger Intrusion Detection Systems and cause network congestion), Vane implements a strictly controlled **passive-first, targeted-verification** architecture.
 
+## 📋 Table of Contents
+* [1. Default Mode: Passive Service Resolution](#1-default-mode-passive-service-resolution)
+* [2. Active Verification: Targeted Known-Host Peeking](#2-active-verification-targeted-known-host-peeking)
+* [3. Supported Service Signatures](#3-supported-service-signatures)
+* [4. Enterprise-Safe Compilation (Compiler Flag `nosweep`)](#4-enterprise-safe-compilation-compiler-flag-nosweep)
+* [5. Reverse Proxies & the Discovery Boundary](#5-reverse-proxies--the-discovery-boundary)
+* [6. Secure Registry Mirroring (Export & Import)](#6-secure-registry-mirroring-export--import)
+
 ---
 
 ## 1. Default Mode: Passive Service Resolution
