@@ -1,5 +1,8 @@
 # VSSD Service Registry & Unified Service Notation (iface|>...[service])
 
+> [!NOTE]
+> **Availability:** Introduced in Vane **v1.1.0 (Production / Current Feature Branch)** | VSSD Suite
+
 The VSSD (Vane Semi-Static Discovery) Cache is not just a static display table—it is the **dynamic service registry and local DNS engine** of Vane. By connecting passive neighbor discovery, manual administrative entries, and system command integration, Vane allows you to reference complex infrastructure using ultra-short service aliases embedded in a unified, consistent notation.
 
 ---

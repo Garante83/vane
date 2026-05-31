@@ -1,5 +1,8 @@
 # High-Performance Concurrent Subnet Scanning
 
+> [!NOTE]
+> **Availability:** Introduced in Vane **v1.0.2 (LTS)** | Companion Utility
+
 Vane includes a built-in, ultra-fast, parallelized TCP subnet sweeper (`vane scan [interface]`). Designed as a zero-dependency diagnostic tool, it enables network administrators to quickly discover active hosts on a local network segment without needing external tools like `nmap` or `arp-scan`. 
 
 It queries system configuration tables, computes active IP ranges, and performs non-privileged concurrent sweeps, outputting ready-to-copy dynamic Vane tokens for instant proxy routing.

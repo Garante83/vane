@@ -1,5 +1,8 @@
 # Unified IP Notation (UIP): Advanced Resolving & Edge-Cases
 
+> [!NOTE]
+> **Availability:** Introduced in Vane **v1.0.2 (LTS)** | Core UIP Engine
+
 This document details the advanced inner workings of Vane's Unified IP Notation (UIP) engine. It is written for network administrators and developers who need to understand how the parser translates shorthand tokens into raw, validated network addresses under complex dual-stack routing environments and failure states.
 
 ---

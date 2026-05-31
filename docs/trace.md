@@ -1,5 +1,8 @@
 # Live Path-Tracing & Latency Monitoring
 
+> [!NOTE]
+> **Availability:** Introduced in Vane **v1.0.2 (LTS)** | Companion Utility
+
 Vane includes a real-time, interactive latency path tracer (`vane trace [target]`). This module functions similarly to the classic `mtr` (My Traceroute) utility, combining path traceroute discovery with continuous, multi-threaded latency probes. 
 
 It provides network administrators and engineers with a highly visual, real-time diagnostic dashboard to pinpoint exactly which intermediate gateway or routing hop is introducing packet loss or latency spikes.

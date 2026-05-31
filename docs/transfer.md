@@ -1,5 +1,8 @@
 # Secure Peer-to-Peer (P2P) File Transfer
 
+> [!NOTE]
+> **Availability:** Introduced in Vane **v1.0.2 (LTS)** | Companion Utility
+
 Vane includes a high-performance, cryptographically secured file transfer protocol (`vane send` and `vane recv`). This module is built for network administrators and users who need to transfer sensitive files (like configuration backups, database dumps, or diagnostic logs) directly between two hosts without relying on external cloud storage, third-party servers, or insecure plain-text tools like netcat.
 
 ---

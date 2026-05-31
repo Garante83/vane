@@ -1,9 +1,10 @@
 # Vane Service Discovery & Verification
 
-Vane is designed from the ground up as a defensive, network-safe administration tool. Unlike standard diagnostic utilities that perform aggressive, high-noise subnet sweeps (which frequently trigger Intrusion Detection Systems and cause network congestion), Vane implements a strictly controlled **passive-first, targeted-verification** architecture.
-
 > [!NOTE]
-> This codebase represents the active feature branch introducing **VSSD (Vane Semi-Static Discovery)**, which implements local service registries, the interactive cache TUI editor, and targeted host verification.
+> **Availability:** Introduced in Vane **v1.1.0 (Production / Current Feature Branch)** | VSSD Suite
+> This suite includes local service registries, the interactive TUI editor, active neighbor sweeps, and secure P2P registry mirroring.
+
+Vane is designed from the ground up as a defensive, network-safe administration tool. Unlike standard diagnostic utilities that perform aggressive, high-noise subnet sweeps (which frequently trigger Intrusion Detection Systems and cause network congestion), Vane implements a strictly controlled **passive-first, targeted-verification** architecture.
 
 ---
 

@@ -1,5 +1,8 @@
 # Live Network Sniffing & Packet Decoding
 
+> [!NOTE]
+> **Availability:** Introduced in Vane **v1.0.2 (LTS)** | Companion Utility
+
 Vane includes a low-level, high-fidelity live packet sniffer (`vane sniff [interface]`). This module is built for network administrators who need real-time visibility into active protocols, domain lookups, and unencrypted web requests traversing an interface, without having to spawn heavy, complex tools like Wireshark or tcpdump.
 
 ---

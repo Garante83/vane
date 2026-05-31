@@ -1,5 +1,8 @@
 # Vane Explain Subcommand
 
+> [!NOTE]
+> **Availability:** Introduced in Vane **v1.1.0 (Production / Current Feature Branch)** | VSSD Suite
+
 The `vane explain` command is Vane's dedicated **interactive diagnostics and dry-run engine**. It is designed to demystify the Unified IP Notation (UIP) resolution process for administrators and developers by providing a step-by-step audit trail of how any notation resolves to a physical IP and port.
 
 ---
