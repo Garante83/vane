@@ -422,6 +422,7 @@ func resolveVendor(mac string) string {
 		"74ac5f": "Intel",
 		"d4619d": "Intel",
 		"001a11": "Intel",
+		"bc2411": "Proxmox Server Solutions",
 	}
 
 	if name, ok := vendors[oui]; ok {
