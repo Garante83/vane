@@ -130,10 +130,17 @@ func printInterfaceMatrix() {
 		os.Exit(1)
 	}
 
+	truncateStr := func(s string, maxLen int) string {
+		if len(s) <= maxLen {
+			return s
+		}
+		return s[:maxLen-3] + "..."
+	}
+
 	fmt.Println("┌──────────────────────────────────────────────────────────────────────────────┐")
 	fmt.Println("│  vane ─ Local Network Interface Matrix                                       │")
 	fmt.Println("└──────────────────────────────────────────────────────────────────────────────┘")
-	fmt.Println("  INTERFACE   STATUS    TYPE       VANE-SYNTAX        REAL IP / DESIGNATION     ")
+	fmt.Println("  INTERFACE                 STATUS    TYPE       VANE-SYNTAX        REAL IP / DESIGNATION     ")
 	fmt.Println(" ──────────────────────────────────────────────────────────────────────────────")
 
 	activeCount := 0
@@ -165,6 +172,7 @@ func printInterfaceMatrix() {
 			activeCount++
 			displayName = fmt.Sprintf("[%d] %s", activeCount, iface.Name)
 		}
+		displayName = truncateStr(displayName, 25)
 
 		if isLoopback {
 			v4Str := "127.0.0.1"
@@ -176,9 +184,9 @@ func printInterfaceMatrix() {
 				v6Str = state.IPv6LinkLocal.String()
 			}
 			coloredSyntax := getColoredSyntax(iface.Name, ":", "1")
-			fmt.Printf("  %-11s %s %-10s %s %s / %s\n", displayName, coloredStatus, typeStr, coloredSyntax, v4Str, v6Str)
+			fmt.Printf("  %-25s %s %-10s %s %s / %s\n", displayName, coloredStatus, typeStr, coloredSyntax, v4Str, v6Str)
 		} else if !isUp {
-			fmt.Printf("  %-11s %s %-10s %s [No Carrier]\n", displayName, coloredStatus, typeStr, getColoredSyntax("───", "", ""))
+			fmt.Printf("  %-25s %s %-10s %s [No Carrier]\n", displayName, coloredStatus, typeStr, getColoredSyntax("───", "", ""))
 		} else if state.IsAPIPA {
 			lastOctet := "34"
 			if state.IPv4Local != nil {
@@ -192,7 +200,7 @@ func printInterfaceMatrix() {
 				ipStr = state.IPv4Local.String()
 			}
 			coloredSyntax := getColoredSyntax(iface.Name, "!", lastOctet)
-			fmt.Printf("  %-11s %s %-10s %s %s (DHCP-FAIL)\n", displayName, coloredStatus, typeStr, coloredSyntax, ipStr)
+			fmt.Printf("  %-25s %s %-10s %s %s (DHCP-FAIL)\n", displayName, coloredStatus, typeStr, coloredSyntax, ipStr)
 		} else {
 			hasV4 := state.IPv4Local != nil
 			hasV6 := state.IPv6Global != nil
@@ -205,14 +213,14 @@ func printInterfaceMatrix() {
 				}
 				v4Type := typeStr + " (v4)"
 				coloredSyntax := getColoredSyntax(iface.Name, ">", lastOctet)
-				fmt.Printf("  %-11s %s %-10s %s %s\n", displayName, coloredStatus, v4Type, coloredSyntax, state.IPv4Local.String())
+				fmt.Printf("  %-25s %s %-10s %s %s\n", displayName, coloredStatus, v4Type, coloredSyntax, state.IPv4Local.String())
 
 				// Dynamic Default Gateway Line
 				gwIP, err := uip.GetDefaultGateway(iface.Name)
 				if err == nil && gwIP != "" {
 					gwType := "(Gateway)"
 					gwSyntax := getColoredSyntax(iface.Name, ">", "gw")
-					fmt.Printf("  %-11s %-9s %-10s %s %s\n", "", "", gwType, gwSyntax, gwIP)
+					fmt.Printf("  %-25s %-9s %-10s %s %s\n", "", "", gwType, gwSyntax, gwIP)
 				}
 			}
 
@@ -236,9 +244,9 @@ func printInterfaceMatrix() {
 				coloredSyntax := getColoredSyntax(iface.Name, "<", lastFour)
 
 				if hasV4 {
-					fmt.Printf("  %-11s %-9s %-10s %s %s\n", "", "", v6Type, coloredSyntax, displayIP)
+					fmt.Printf("  %-25s %-9s %-10s %s %s\n", "", "", v6Type, coloredSyntax, displayIP)
 				} else {
-					fmt.Printf("  %-11s %s %-10s %s %s\n", displayName, coloredStatus, v6Type, coloredSyntax, displayIP)
+					fmt.Printf("  %-25s %s %-10s %s %s\n", displayName, coloredStatus, v6Type, coloredSyntax, displayIP)
 				}
 			}
 

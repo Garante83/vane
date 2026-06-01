@@ -395,14 +395,8 @@ func GetDefaultGateway(ifaceName string) (string, error) {
 		cmd := exec.Command("powershell", "-NoProfile", "-Command",
 			fmt.Sprintf("Get-NetRoute -InterfaceAlias '%s' -DestinationPrefix '0.0.0.0/0' | Select-Object -ExpandProperty NextHop", ifaceName))
 		out, err := cmd.Output()
-		if err != nil {
-			cmdFallback := exec.Command("powershell", "-NoProfile", "-Command",
-				"Get-NetRoute -DestinationPrefix '0.0.0.0/0' | Select-Object -ExpandProperty NextHop")
-			outFallback, errFallback := cmdFallback.Output()
-			if errFallback == nil && len(strings.TrimSpace(string(outFallback))) > 0 {
-				return strings.TrimSpace(string(outFallback)), nil
-			}
-			return "", fmt.Errorf("failed to detect gateway on Windows: %v", err)
+		if err != nil || len(strings.TrimSpace(string(out))) == 0 {
+			return "", fmt.Errorf("no default gateway found for interface %s", ifaceName)
 		}
 		ip := strings.TrimSpace(string(out))
 		if ip == "" || ip == "0.0.0.0" {
