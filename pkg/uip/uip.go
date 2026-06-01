@@ -258,9 +258,21 @@ func ResolveTokenIP(targetToken *Token, state *netstate.State) (string, error) {
 	return targetIP, nil
 }
 
-// ResolveIPv4Dots formats the local IPv4 address by overriding octets relative to the dot count
+// ResolveIPv4Dots formats the local IPv4 address by overriding octets relative to the dot count.
+// It dynamically overrides the parsed dotCount based on the number of dot-separated segments in the hostPart,
+// allowing users to jump across subnets regardless of whether they typed 1, 2, or 3 dots.
 func ResolveIPv4Dots(localIP net.IP, dotCount int, hostPart string) string {
 	parts := strings.Split(localIP.String(), ".")
+
+	// Count how many octet segments are defined in hostPart (e.g. "5" has 1, "50.5" has 2, "6.50.5" has 3)
+	hostSegments := strings.Split(hostPart, ".")
+	numHostSegments := len(hostSegments)
+
+	// Dynamically override dotCount to ensure the resulting address has exactly 4 octets.
+	if numHostSegments > 1 && numHostSegments < 4 {
+		dotCount = 4 - numHostSegments
+	}
+
 	if dotCount > 0 && dotCount <= len(parts) {
 		return strings.Join(parts[:dotCount], ".") + "." + hostPart
 	}

@@ -170,6 +170,30 @@ func TestResolveTokenIP_Success(t *testing.T) {
 			expectedIP: "192.168.100.33",
 		},
 		{
+			name: "IPv4 auto-correction segment count (3 dots for 2 segments)",
+			token: Token{
+				Direction: ">",
+				Dots:      3,
+				HostPart:  "100.33",
+			},
+			state: netstate.State{
+				IPv4Local: net.ParseIP("192.168.178.50"),
+			},
+			expectedIP: "192.168.100.33",
+		},
+		{
+			name: "IPv4 auto-correction segment count (1 dot for 2 segments)",
+			token: Token{
+				Direction: ">",
+				Dots:      1,
+				HostPart:  "100.33",
+			},
+			state: netstate.State{
+				IPv4Local: net.ParseIP("192.168.178.50"),
+			},
+			expectedIP: "192.168.100.33",
+		},
+		{
 			name: "IPv6 ULA segment replacement",
 			token: Token{
 				Direction: ">",
