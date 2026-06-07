@@ -82,7 +82,7 @@ func PerformScan(ifaceName string) error {
 
 	// Display scanning header
 	fmt.Println("┌──────────────────────────────────────────────────────────────────────────────┐")
-	fmt.Printf("│  vane scan ─ Neighbor Discovery Matrix (Interface: %-26s) │\n", ifaceName)
+	fmt.Printf("│  vane scan ─ Neighbor Discovery Matrix (Interface: %-24s) │\n", ifaceName)
 	fmt.Println("└──────────────────────────────────────────────────────────────────────────────┘")
 	fmt.Printf("  Sweeping %d possible IP targets in local subnet %s...\n\n", len(subnetIPs), localIP.String())
 

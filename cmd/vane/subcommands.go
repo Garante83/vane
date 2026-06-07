@@ -642,6 +642,17 @@ func handleDiscoverSubcommand(ifaceName string, persistent, sweepFlag, clearFlag
 	} else {
 		fmt.Println("  Tip: Use \"--edit\" (-e) to manually edit or \"--clear\" (-c) to clear the local cache.")
 	}
+
+	// Dynamic hint if a corrupted cache backup file exists
+	if cachePath, errPath := vssd.GetCachePath(); errPath == nil {
+		if _, errStat := os.Stat(cachePath + ".corrupted"); errStat == nil {
+			if getSystemLanguage() == "de" {
+				fmt.Printf("  \x1b[1;33m[!] Hinweis: Eine beschädigte Cache-Backup-Datei wurde unter '%s.corrupted' gesichert.\x1b[0m\n", cachePath)
+			} else {
+				fmt.Printf("  \x1b[1;33m[!] Note: A corrupted cache backup file is stored at '%s.corrupted'.\x1b[0m\n", cachePath)
+			}
+		}
+	}
 	fmt.Println()
 
 	return nil

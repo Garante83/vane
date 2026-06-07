@@ -297,3 +297,65 @@ func TestMergeIncomingRegistry(t *testing.T) {
 		t.Errorf("expected brand new 'nas' to be '192.168.178.99', got %v", nas)
 	}
 }
+
+func TestCacheSelfHealing(t *testing.T) {
+	tempHome, err := os.MkdirTemp("", "vane-home-corrupted-*")
+	if err != nil {
+		t.Fatalf("failed to create temp home: %v", err)
+	}
+	defer os.RemoveAll(tempHome)
+
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tempHome)
+	defer os.Setenv("HOME", origHome)
+
+	cacheFile := filepath.Join(tempHome, ".config", "vane", "cache.json")
+	err = os.MkdirAll(filepath.Dir(cacheFile), 0700)
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+
+	// Write corrupted JSON
+	corruptedData := []byte(`{"invalid-json": [unclosed-array`)
+	err = os.WriteFile(cacheFile, corruptedData, 0600)
+	if err != nil {
+		t.Fatalf("failed to write corrupted cache: %v", err)
+	}
+
+	// 1. Resolve from cache should fail gracefully and not panic
+	ip, found := ResolveFromCache("eno1", "pve")
+	if found || ip != "" {
+		t.Errorf("expected miss on corrupted cache, got IP %q, found %t", ip, found)
+	}
+
+	// Verify corrupted backup file exists
+	corruptedBackup := cacheFile + ".corrupted"
+	if _, errStat := os.Stat(corruptedBackup); os.IsNotExist(errStat) {
+		t.Errorf("expected backup file %s to exist, but was not found", corruptedBackup)
+	}
+
+	// Verify original corrupted file was removed to heal
+	if _, errStat := os.Stat(cacheFile); !os.IsNotExist(errStat) {
+		t.Errorf("expected original corrupted cache %s to be removed, but it still exists", cacheFile)
+	}
+
+	// 2. LoadCacheForInterface should also heal cleanly
+	// Re-write corrupted JSON
+	err = os.WriteFile(cacheFile, corruptedData, 0600)
+	if err != nil {
+		t.Fatalf("failed to write corrupted cache: %v", err)
+	}
+
+	resMap, errLoad := LoadCacheForInterface("eno1")
+	if errLoad != nil {
+		t.Errorf("expected no error from LoadCacheForInterface on corrupted cache, got: %v", errLoad)
+	}
+	if len(resMap) != 0 {
+		t.Errorf("expected empty map from LoadCacheForInterface on corrupted cache, got: %v", resMap)
+	}
+
+	// Verify backup file exists again
+	if _, errStat := os.Stat(corruptedBackup); os.IsNotExist(errStat) {
+		t.Errorf("expected backup file %s to exist, but was not found", corruptedBackup)
+	}
+}

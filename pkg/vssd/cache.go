@@ -49,7 +49,17 @@ func GetCachePath() (string, error) {
 			return "", err
 		}
 	}
-	return filepath.Join(home, ".config", "vane", "cache.json"), nil
+	path := filepath.Join(home, ".config", "vane", "cache.json")
+
+	// Automatic cleanup of stale corrupted backup files older than 30 days
+	corrPath := path + ".corrupted"
+	if info, err := os.Stat(corrPath); err == nil {
+		if time.Since(info.ModTime()) > 30*24*time.Hour {
+			_ = os.Remove(corrPath)
+		}
+	}
+
+	return path, nil
 }
 
 // ResolveFromCache attempts to find a dynamic IP mapping for a given interface and token.
@@ -74,6 +84,9 @@ func ResolveFromCache(iface, token string) (string, bool) {
 
 	var schema CacheSchema
 	if err := json.Unmarshal(data, &schema); err != nil {
+		_ = os.WriteFile(path+".corrupted", data, 0600)
+		EnsureCacheOwnership(path + ".corrupted")
+		_ = os.Remove(path)
 		return "", false
 	}
 
@@ -111,7 +124,11 @@ func UpdateCache(iface, token string, entry CacheEntry) error {
 	if _, err := os.Stat(path); err == nil {
 		data, readErr := os.ReadFile(path)
 		if readErr == nil {
-			_ = json.Unmarshal(data, &schema)
+			if unmarshalErr := json.Unmarshal(data, &schema); unmarshalErr != nil {
+				_ = os.WriteFile(path+".corrupted", data, 0600)
+				EnsureCacheOwnership(path + ".corrupted")
+				schema = make(CacheSchema)
+			}
 		}
 	}
 
@@ -181,7 +198,10 @@ func LoadCacheForInterface(iface string) (InterfaceMap, error) {
 
 	var schema CacheSchema
 	if err := json.Unmarshal(data, &schema); err != nil {
-		return nil, err
+		_ = os.WriteFile(path+".corrupted", data, 0600)
+		EnsureCacheOwnership(path + ".corrupted")
+		_ = os.Remove(path)
+		return make(InterfaceMap), nil
 	}
 
 	ifaceMap, exists := schema[iface]
@@ -220,7 +240,11 @@ func MergeIncomingRegistry(incomingData []byte, iface string) (added int, demote
 	if _, err := os.Stat(path); err == nil {
 		data, readErr := os.ReadFile(path)
 		if readErr == nil {
-			_ = json.Unmarshal(data, &schema)
+			if unmarshalErr := json.Unmarshal(data, &schema); unmarshalErr != nil {
+				_ = os.WriteFile(path+".corrupted", data, 0600)
+				EnsureCacheOwnership(path + ".corrupted")
+				schema = make(CacheSchema)
+			}
 		}
 	}
 

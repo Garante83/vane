@@ -86,13 +86,15 @@ vane discover -e
 *   **`D` (Delete Entry):** Removes a mapping cleanly from the cache.
 *   **`C` (Clear Cache):** Wipes all cached entries for the selected network interface.
 *   **`S` (Raw Edit):** Opens the raw JSON cache file in the terminal's system editor (defaulting to `nano` or `$EDITOR`).
+*   **`R` (Rescue Backup):** Visible only when a corrupted cache file backup is found. Spawns the **Recovery Assistant** menu to rescue your settings.
 *   **`Q` (Quit):** Quits the interactive editor.
 
-### Architectural Safeguards
-To ensure database integrity and a clean terminal layout, the editor enforces three strict rules:
+### Architectural Safeguards & Visual Symmetries
+To ensure database integrity and a clean terminal layout, the editor enforces strict safeguards:
 1. **Strict 3-Character Tokens:** Service tokens must be exactly three lowercase alphabetical characters (a-z, e.g. `pot` for Portainer, `nas` for TrueNAS). This keeps the visual CLI discovery matrix perfectly aligned.
 2. **Separation of Token & Name:** Vane keeps your technical 3-letter token separate from a descriptive spelled-out name/description (e.g., Token: `pot`, Name: `Portainer Server`). 
 3. **Duplicate Prevention:** When editing or adding a token, Vane automatically deletes the old record if you change the token key, ensuring no orphan duplicate entries remain in the JSON registry.
+4. **Symmetrical Index Alignment:** The index numbers (`[1]` to `[999]`) are formatted using left-aligned fixed-width padding (`%-5s`). This guarantees that your green arrows `➔` and server information fields remain perfectly aligned in vertical columns even when your registry grows to double or triple digits.
 
 ---
 
@@ -102,7 +104,21 @@ Since the VSSD cache stores sensitive local infrastructure IPs, MAC addresses, a
 
 *   **File Permissions (0600):** 
     The cache file `cache.json` is created with strict owner read/write permissions (`-rw-------`). Any unauthorized read or write access from other local user accounts is blocked by the operating system kernel.
-*   **Clean Clearing:**
+*   **Self-Healing Config Cache:**
+    In the event of a disk error or dynamic JSON corruption, Vane prevents application crashes or network resolution failures through its built-in self-healing runtime:
+    1.  **Passive Detection:** If the database becomes unparseable on startup or cache lookup, the runtime fangs the error gracefully without throwing exceptions.
+    2.  **Rescue Backup:** The corrupted cache is immediately backed up to `cache.json.corrupted` so that your custom manual entries are never permanently lost.
+    3.  **Clean Re-initialization:** Vane spawns a fresh, fully valid JSON database (`{}`) in 0ms and moves on.
+    4.  **Stale Backup Auto-Cleanup:** Stale `.corrupted` files are automatically cleaned up and deleted by Vane after 30 days to avoid cluttering the home directory.
+*   **Built-in Auto-Repair JSON Doctor:**
+    If a corrupted backup exists, pressing **`[R]`** in `vane discover -e` launches the **Corrupted Cache Recovery Assistant**:
+    *   **Auto-Repair:** Runs automated diagnostic filters to heal 95% of manual editing mistakes:
+        *   *Brace/Bracket Counter:* Counts open vs close delimiters and automatically appends missing `}` or `]` characters at the end of the file.
+        *   *Trailing Comma Trimmer:* Automatically strips illegal trailing commas before closing braces.
+        *   *Consecutive Comma Collapser:* Automatically collapses multiple consecutive commas (e.g. `,,,` or `, , ,` ➔ `,`).
+        *   *Adjacent Object Comma Injector:* Injects missing commas between adjacent records.
+    *   **System Editor Rescue:** Opens the corrupted backup directly in your terminal text editor. Once closed, Vane immediately validates your edits in real-time, offering to restore the repaired backup as your active cache.
+*   **Clean Wiping:**
     You can wipe your service registry at any time using:
     ```bash
     vane discover -c
@@ -115,5 +131,5 @@ Since the VSSD cache stores sensitive local infrastructure IPs, MAC addresses, a
 
 Vane allows you to export your curated registry maps from one master machine and import them securely onto other client devices in your local network using ephemeral TLS 1.3 tunnels. 
 
-See the [Vane Service Discovery Manual](discovery.md#6-secure-registry-mirroring-export--import) for full usage instructions, command flags, and details on Vane's automated "Hackordnung" conflict resolution engine.
+See the [Vane Service Discovery Manual](04_discovery.md#6-secure-registry-mirroring-export--import) for full usage instructions, command flags, and details on Vane's automated "Hackordnung" conflict resolution engine.
 

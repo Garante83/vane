@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
@@ -93,9 +94,16 @@ func runInteractiveCacheEditor(ifaceName string) error {
 				}
 				displayName := getSpelledOutNameCustom(tok, entry)
 
-				fmt.Printf("    \x1b[1;32m[%d]\x1b[0m \x1b[1;37m%-6s\x1b[0m ➔ \x1b[36m%-20s\x1b[0m \x1b[90m(IP: %-15s | Ports: %s)\x1b[0m\n",
-					idx+1, tok, displayName, entry.IP, portsStr)
+				idxStr := fmt.Sprintf("[%d]", idx+1)
+				fmt.Printf("    \x1b[1;32m%-5s\x1b[0m \x1b[1;37m%-6s\x1b[0m ➔ \x1b[36m%-20s\x1b[0m \x1b[90m(IP: %-15s | Ports: %s)\x1b[0m\n",
+					idxStr, tok, displayName, entry.IP, portsStr)
 			}
+		}
+
+		corrPath := path + ".corrupted"
+		hasCorrupted := false
+		if _, errStat := os.Stat(corrPath); errStat == nil {
+			hasCorrupted = true
 		}
 
 		// 4. Draw action shortcuts in bold yellow
@@ -106,6 +114,9 @@ func runInteractiveCacheEditor(ifaceName string) error {
 			fmt.Println("    \x1b[1;33m[D]\x1b[0m Eintrag löschen (Delete)")
 			fmt.Println("    \x1b[1;33m[C]\x1b[0m Cache leeren (Clear)")
 			fmt.Println("    \x1b[1;33m[S]\x1b[0m System-Texteditor starten (Raw JSON mit nano/vi)")
+			if hasCorrupted {
+				fmt.Println("    \x1b[1;31m[R]\x1b[0m Beschädigtes Backup retten / bearbeiten (Auto-Repair & Editor)")
+			}
 			fmt.Println("    \x1b[1;33m[Q]\x1b[0m Beenden (Quit)")
 		} else {
 			fmt.Println("    \x1b[1;33m[A]\x1b[0m Add new service entry")
@@ -113,6 +124,9 @@ func runInteractiveCacheEditor(ifaceName string) error {
 			fmt.Println("    \x1b[1;33m[D]\x1b[0m Delete service entry")
 			fmt.Println("    \x1b[1;33m[C]\x1b[0m Clear cache completely")
 			fmt.Println("    \x1b[1;33m[S]\x1b[0m Start system text editor (Raw JSON)")
+			if hasCorrupted {
+				fmt.Println("    \x1b[1;31m[R]\x1b[0m Rescue / edit corrupted backup file (Auto-Repair & Editor)")
+			}
 			fmt.Println("    \x1b[1;33m[Q]\x1b[0m Quit")
 		}
 
@@ -512,6 +526,12 @@ func runInteractiveCacheEditor(ifaceName string) error {
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			_ = cmd.Run()
+
+		case "R":
+			if !hasCorrupted {
+				continue
+			}
+			handleBackupRescueMenu(reader, path, corrPath)
 		}
 	}
 	return nil
@@ -596,4 +616,201 @@ func lookupMACByIP(ifaceName, ip string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("not found")
+}
+
+func tryAutoRepairJSON(data []byte) ([]byte, error) {
+	str := string(data)
+	str = strings.TrimSpace(str)
+	if str == "" {
+		return []byte("{}"), nil
+	}
+
+	// 0. Collapse consecutive commas and whitespace (e.g. ,,, or , , , -> ,)
+	reMultiCommas := regexp.MustCompile(`,[\s,]+`)
+	str = reMultiCommas.ReplaceAllString(str, ",")
+
+	// 1. Remove trailing commas before closing braces/brackets (extremely common manual edit error)
+	reTrailingComma := regexp.MustCompile(`, \s*([\}\]])|,\s*([\}\]])`)
+	str = reTrailingComma.ReplaceAllString(str, "$1$2")
+
+	// 1.5 Strip trailing comma at the very end of the JSON document
+	reEndComma := regexp.MustCompile(`,$`)
+	str = reEndComma.ReplaceAllString(str, "")
+
+	// 2. Insert missing commas between consecutive JSON objects/entries (e.g. } "key": { ... } without comma)
+	reMissingComma := regexp.MustCompile(`\}\s*"\s*`)
+	str = reMissingComma.ReplaceAllString(str, `}, "`)
+
+	// 3. Count open vs close braces and brackets and fix unclosed structures at the end
+	openBraces := strings.Count(str, "{")
+	closeBraces := strings.Count(str, "}")
+	openBrackets := strings.Count(str, "[")
+	closeBrackets := strings.Count(str, "]")
+
+	if openBrackets > closeBrackets {
+		str += strings.Repeat("]", openBrackets-closeBrackets)
+	}
+	if openBraces > closeBraces {
+		str += strings.Repeat("}", openBraces-closeBraces)
+	}
+
+	// Try unmarshaling to verify if repaired JSON is correct
+	var testSchema map[string]interface{}
+	err := json.Unmarshal([]byte(str), &testSchema)
+	if err == nil {
+		pretty, indentErr := json.MarshalIndent(testSchema, "", "  ")
+		if indentErr == nil {
+			return pretty, nil
+		}
+		return []byte(str), nil
+	}
+
+	return nil, err
+}
+
+func handleBackupRescueMenu(reader *bufio.Reader, path, corrPath string) {
+	for {
+		fmt.Print("\x1b[H\x1b[2J") // Clear screen
+		fmt.Println("┌" + strings.Repeat("─", 72) + "┐")
+		if getSystemLanguage() == "de" {
+			fmt.Println("│  \x1b[1;31mvane ─ Menü zur Rettung beschädigter Cache-Dateien\x1b[0m                  │")
+		} else {
+			fmt.Println("│  \x1b[1;31mvane ─ Corrupted Cache Recovery Assistant\x1b[0m                       │")
+		}
+		fmt.Println("└" + strings.Repeat("─", 72) + "┘")
+
+		if getSystemLanguage() == "de" {
+			fmt.Println("\n  Eine beschädigte Cache-Datei wurde im Hintergrund gesichert.")
+			fmt.Println("  Wie möchtest du vorgehen?")
+			fmt.Println()
+			fmt.Println("    \x1b[1;33m[1]\x1b[0m Automatische Reparatur versuchen (Kommas, Klammern etc. heilen)")
+			fmt.Println("    \x1b[1;33m[2]\x1b[0m Backup-Datei im System-Texteditor öffnen (nano/vi)")
+			fmt.Println("    \x1b[1;33m[3]\x1b[0m Backup-Datei löschen (Verwerfen)")
+			fmt.Println("    \x1b[1;33m[Q]\x1b[0m Zurück zum Hauptmenü (Back)")
+		} else {
+			fmt.Println("\n  A corrupted cache file was backed up in the background.")
+			fmt.Println("  What would you like to do?")
+			fmt.Println()
+			fmt.Println("    \x1b[1;33m[1]\x1b[0m Attempt automatic repair (heals missing commas, braces, etc.)")
+			fmt.Println("    \x1b[1;33m[2]\x1b[0m Open backup file in system text editor (nano/vi)")
+			fmt.Println("    \x1b[1;33m[3]\x1b[0m Delete backup file (Discard)")
+			fmt.Println("    \x1b[1;33m[Q]\x1b[0m Back to main menu")
+		}
+
+		fmt.Print("\n  \x1b[1;37mAuswahl:\x1b[0m ")
+		subChoice, _ := reader.ReadString('\n')
+		subChoice = strings.TrimSpace(strings.ToUpper(subChoice))
+
+		if subChoice == "Q" {
+			break
+		}
+
+		switch subChoice {
+		case "1":
+			data, err := os.ReadFile(corrPath)
+			if err != nil {
+				if getSystemLanguage() == "de" {
+					fmt.Printf("\n    \x1b[1;31m❌ Fehler beim Lesen der Backup-Datei: %v\x1b[0m\n", err)
+				} else {
+					fmt.Printf("\n    \x1b[1;31m❌ Error reading backup file: %v\x1b[0m\n", err)
+				}
+				time.Sleep(2 * time.Second)
+				continue
+			}
+
+			repairedData, repairErr := tryAutoRepairJSON(data)
+			if repairErr != nil {
+				if getSystemLanguage() == "de" {
+					fmt.Printf("\n    \x1b[1;31m❌ Automatische Reparatur fehlgeschlagen: %v\x1b[0m\n", repairErr)
+					fmt.Println("    Nutze Option [2] für eine manuelle Reparatur.")
+				} else {
+					fmt.Printf("\n    \x1b[1;31m❌ Automatic repair failed: %v\x1b[0m\n", repairErr)
+					fmt.Println("    Please use option [2] to repair it manually.")
+				}
+				time.Sleep(3 * time.Second)
+				continue
+			}
+
+			errSave := os.WriteFile(path, repairedData, 0600)
+			if errSave != nil {
+				if getSystemLanguage() == "de" {
+					fmt.Printf("\n    \x1b[1;31m❌ Fehler beim Speichern der reparierten Datei: %v\x1b[0m\n", errSave)
+				} else {
+					fmt.Printf("\n    \x1b[1;31m❌ Error saving repaired file: %v\x1b[0m\n", errSave)
+				}
+				time.Sleep(2 * time.Second)
+				continue
+			}
+
+			_ = os.Remove(corrPath)
+			vssd.EnsureCacheOwnership(path)
+
+			if getSystemLanguage() == "de" {
+				fmt.Println("\n    \x1b[1;32m✔ Automatische Reparatur erfolgreich abgeschlossen!\x1b[0m")
+				fmt.Println("    Die Daten wurden wiederhergestellt und im Haupt-Cache gesichert.")
+			} else {
+				fmt.Println("\n    \x1b[1;32m✔ Automatic repair completed successfully!\x1b[0m")
+				fmt.Println("    Data has been recovered and saved to the primary cache.")
+			}
+			time.Sleep(2 * time.Second)
+			return
+
+		case "2":
+			editor := os.Getenv("EDITOR")
+			if editor == "" {
+				editor = "nano"
+			}
+			cmd := exec.Command(editor, corrPath)
+			cmd.Stdin = os.Stdin
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			_ = cmd.Run()
+
+			data, err := os.ReadFile(corrPath)
+			if err == nil {
+				var tempSchema map[string]interface{}
+				if json.Unmarshal(data, &tempSchema) == nil {
+					if getSystemLanguage() == "de" {
+						fmt.Print("\n    \x1b[1;32m✔ Die Datei ist jetzt valides JSON! Als aktiven Cache wiederherstellen? [Y/n]:\x1b[0m ")
+					} else {
+						fmt.Print("\n    \x1b[1;32m✔ File is now valid JSON! Restore as active cache? [Y/n]:\x1b[0m ")
+					}
+					ans, _ := reader.ReadString('\n')
+					ans = strings.TrimSpace(strings.ToLower(ans))
+					if ans == "" || ans == "y" || ans == "yes" || ans == "ja" {
+						_ = os.WriteFile(path, data, 0600)
+						_ = os.Remove(corrPath)
+						vssd.EnsureCacheOwnership(path)
+						if getSystemLanguage() == "de" {
+							fmt.Println("    \x1b[1;32m✔ Cache erfolgreich wiederhergestellt!\x1b[0m")
+						} else {
+							fmt.Println("    \x1b[1;32m✔ Cache restored successfully!\x1b[0m")
+						}
+						time.Sleep(1500 * time.Millisecond)
+						return
+					}
+				}
+			}
+
+		case "3":
+			var ans string
+			if getSystemLanguage() == "de" {
+				fmt.Print("    Backup-Datei wirklich endgültig löschen? [y/N]: ")
+			} else {
+				fmt.Print("    Are you sure you want to permanently delete the backup file? [y/N]: ")
+			}
+			ans, _ = reader.ReadString('\n')
+			ans = strings.TrimSpace(strings.ToLower(ans))
+			if ans == "y" || ans == "yes" || ans == "ja" {
+				_ = os.Remove(corrPath)
+				if getSystemLanguage() == "de" {
+					fmt.Println("    \x1b[1;32m✔ Backup-Datei gelöscht.\x1b[0m")
+				} else {
+					fmt.Println("    \x1b[1;32m✔ Backup file deleted.\x1b[0m")
+				}
+				time.Sleep(1 * time.Second)
+				return
+			}
+		}
+	}
 }

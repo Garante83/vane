@@ -316,6 +316,54 @@ func parseARPCache(ifaceName string) map[string]string {
 func peekServiceFingerprint(ip string, port int) string {
 	// A. Check database and special enterprise protocols first
 	switch port {
+	case 22: // SSH banner peeking
+		conn, err := net.DialTimeout("tcp", net.JoinHostPort(ip, "22"), 250*time.Millisecond)
+		if err == nil {
+			defer conn.Close()
+			buf := make([]byte, 256)
+			_ = conn.SetReadDeadline(time.Now().Add(250 * time.Millisecond))
+			n, err := conn.Read(buf)
+			if err == nil {
+				banner := strings.ToLower(string(buf[:n]))
+				if strings.Contains(banner, "raspbian") || strings.Contains(banner, "raspberry") {
+					return "pi"
+				}
+				if strings.Contains(banner, "dropbear") {
+					return "rtr" // dropbear is common on routers/embedded devices
+				}
+			}
+		}
+		return ""
+	case 53: // DNS resolver check
+		conn, err := net.DialTimeout("udp", net.JoinHostPort(ip, "53"), 250*time.Millisecond)
+		if err == nil {
+			defer conn.Close()
+			// Minimal valid DNS query for 'localhost' A record
+			query := []byte{
+				0x12, 0x34, // Transaction ID
+				0x01, 0x00, // Flags (Standard Query)
+				0x00, 0x01, // Questions: 1
+				0x00, 0x00, // Answer RRs: 0
+				0x00, 0x00, // Authority RRs: 0
+				0x00, 0x00, // Additional RRs: 0
+				0x09, 'l', 'o', 'c', 'a', 'l', 'h', 'o', 's', 't', 0x00, // Name: localhost
+				0x00, 0x01, // Type: A
+				0x00, 0x01, // Class: IN
+			}
+			_, err = conn.Write(query)
+			if err == nil {
+				buf := make([]byte, 512)
+				_ = conn.SetReadDeadline(time.Now().Add(250 * time.Millisecond))
+				n, err := conn.Read(buf)
+				if err == nil && n >= 12 {
+					// Check Transaction ID match and response flag (QR bit in byte 2 must be set: buf[2] & 0x80)
+					if buf[0] == 0x12 && buf[1] == 0x34 && (buf[2]&0x80) != 0 {
+						return "dns"
+					}
+				}
+			}
+		}
+		return ""
 	case 6379: // Redis
 		conn, err := net.DialTimeout("tcp", net.JoinHostPort(ip, "6379"), 150*time.Millisecond)
 		if err == nil {

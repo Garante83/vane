@@ -123,10 +123,11 @@ var Signatures = []ServiceSignature{
 		MDNSNames:   []string{"pmg", "proxmox-mail-gateway"},
 	},
 	{
-		Token:       "vwr",
-		DisplayName: "VMware ESXi",
-		Ports:       []int{443, 902},
-		MDNSNames:   []string{"esxi", "vmware", "vcenter", "vsphere"},
+		Token:          "vwr",
+		DisplayName:    "VMware ESXi",
+		Ports:          []int{443, 902},
+		MDNSNames:      []string{"esxi", "vmware", "vcenter", "vsphere"},
+		MACOUIPrefixes: []string{"00:50:56", "00:0c:29"}, // VMware virtual MAC OUIs
 	},
 	{
 		Token:       "xcp",
@@ -135,10 +136,11 @@ var Signatures = []ServiceSignature{
 		MDNSNames:   []string{"xcp", "xcp-ng", "xen", "xenserver"},
 	},
 	{
-		Token:       "hvs",
-		DisplayName: "Hyper-V",
-		Ports:       []int{5985, 5986, 3389},
-		MDNSNames:   []string{"hyperv", "windows-server", "rdp"},
+		Token:          "hvs",
+		DisplayName:    "Hyper-V",
+		Ports:          []int{5985, 5986, 3389},
+		MDNSNames:      []string{"hyperv", "windows-server", "rdp"},
+		MACOUIPrefixes: []string{"00:15:5d"}, // Microsoft Hyper-V virtual MAC OUI
 	},
 	// Media & Homelab services
 	{
@@ -278,7 +280,7 @@ var Signatures = []ServiceSignature{
 		DisplayName:    "IoT / ESP",
 		Ports:          []int{80, 1883},
 		MDNSNames:      []string{"shelly", "sonoff", "iot-device", "esp32", "esp8266"},
-		MACOUIPrefixes: []string{"84:0d:8e", "24:0a:c4", "30:ae:a4"}, // Espressif OUIs (ESP8266/ESP32)
+		MACOUIPrefixes: []string{"84:0d:8e", "24:0a:c4", "30:ae:a4", "00:0e:58", "00:17:88"}, // Espressif, Sonos, Philips Hue OUIs
 	},
 }
 

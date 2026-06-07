@@ -102,7 +102,16 @@ Query and cross-reference network configurations bidirectionally on any active a
 
 ---
 
-## 3. Integrated Companion Utilities
+## 3. Quickstart & Handbooks Reference
+
+To get up and running with **vane** in under two minutes, please refer to our comprehensive:
+👉 **[Quickstart & Reference Guide (docs/01_quickstart.md)](docs/01_quickstart.md)**
+
+This companion handbook covers the essential 2-minute master workflow (loopback pings, service scans, and mapping semantic tokens) and provides a clean directory of the 11 specialized system handbooks located inside the [docs/](docs/) directory.
+
+---
+
+## 4. Integrated Companion Utilities
 
 While these built-in diagnostics are designed to seamlessly support the Vane Notation, they can also be used completely independently as standalone, simple network utilities in their own right—even if industry-standard tools already exist.
 
@@ -128,7 +137,8 @@ An intelligent service discovery engine to map and profile your local services. 
 * **Active Neighborhood Sweep (`vane discover -w` / `--sweep`):** Actively sweeps known network neighbors from your OS ARP cache, performing concurrent TCP port and payload fingerprinting to identify services.
 * **Targeted Port Fingerprinting (`vane discover <IP>`):** Runs deep fingerprinting queries on a specific host's ports.
 * **Service Autodetection:** Recognizes custom signatures such as Proxmox VE (`pve`), Open WebUI (`owu`), Nextcloud (`ncd`), Paperless-ngx (`ppl`), Home Assistant (`hass`), Nginx Proxy Manager (`rpx`), and AdGuard/Pi-hole (`dns`).
-* **Interactive TUI Cache Editor (`vane discover -e`):** Fully interactive console manager to manually add, edit, or delete local services.
+* **Interactive TUI Cache Editor (`vane discover -e`):** Fully interactive console manager to manually add, edit, or delete local services with perfectly aligned column index padding.
+* **Self-Healing Config Cache:** If the cache file becomes corrupted (due to manual edit errors like trailing commas, duplicate commas, or missing brackets/braces), Vane automatically backs up the broken cache to `cache.json.corrupted`, re-initializes a clean cache, and features a built-in **Auto-Repair JSON Doctor** and direct system editor rescue loop inside `vane discover -e` to heal the file. Stale backup files are automatically deleted after 30 days.
 * **Enterprise-Ready:** Features a sweep-safe Enterprise compilation option that blocks active neighborhood sweeps while preserving passive and single-target discovery (see [Enterprise-Safe Compilation](#enterprise-safe-compilation-sweep-free) in the Installation section).
 
 ---
