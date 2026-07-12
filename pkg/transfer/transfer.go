@@ -170,7 +170,7 @@ func PerformSend(filePath, code string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open file: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	fi, err := file.Stat()
 	if err != nil {
@@ -211,7 +211,7 @@ func PerformSend(filePath, code string) error {
 		InsecureSkipVerify: true,
 	}
 	conn := tls.Client(rawConn, config)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	err = conn.Handshake()
 	if err != nil {
@@ -315,7 +315,7 @@ func PerformReceive(port string) error {
 	if err != nil {
 		return fmt.Errorf("failed to listen on port %s: %w", port, err)
 	}
-	defer ln.Close()
+	defer func() { _ = ln.Close() }()
 
 	fmt.Printf("┌────────────────────────────────────────────────────────────────────┐\n")
 	fmt.Printf("│  vane recv ─ Standing by for incoming file transfer...             │\n")
@@ -343,7 +343,7 @@ func PerformReceive(port string) error {
 	}
 
 	conn := tls.Server(rawConn, config)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	err = conn.Handshake()
 	if err != nil {
@@ -413,7 +413,7 @@ func PerformReceive(port string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create destination file %s: %w", dstPath, err)
 	}
-	defer dstFile.Close()
+	defer func() { _ = dstFile.Close() }()
 
 	// 3. Stream data to file and hash on-the-fly
 	startTime := time.Now()
@@ -515,7 +515,7 @@ func PerformRegistrySend(registryData []byte, code string) error {
 
 	config := &tls.Config{InsecureSkipVerify: true}
 	conn := tls.Client(rawConn, config)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	if err := conn.Handshake(); err != nil {
 		return fmt.Errorf("TLS handshake failed: %w", err)
@@ -590,7 +590,7 @@ func PerformRegistryReceive(port string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to listen on port %s: %w", port, err)
 	}
-	defer ln.Close()
+	defer func() { _ = ln.Close() }()
 
 	fmt.Printf("\n  🚀 VSSD Mirror Service Active!\n")
 	fmt.Printf("  ────────────────────────────────────────────────────────────────────\n")
@@ -614,7 +614,7 @@ func PerformRegistryReceive(port string) ([]byte, error) {
 	}
 
 	conn := tls.Server(rawConn, config)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	if err := conn.Handshake(); err != nil {
 		return nil, fmt.Errorf("TLS handshake failed: %w", err)

@@ -52,7 +52,7 @@ func PerformSniff(ifaceName string) error {
 		}
 		return fmt.Errorf("failed to open raw socket: %w", err)
 	}
-	defer syscall.Close(fd)
+	defer func() { _ = syscall.Close(fd) }()
 
 	// 2. Bind raw socket directly to specified interface
 	iface, err := net.InterfaceByName(ifaceName)
@@ -297,9 +297,10 @@ func printLog(proto, src, dst, detail string) {
 
 	// Pad protocol to exactly 5 characters to maintain alignment despite ANSI escape tags
 	paddedProto := coloredProto
-	if proto == "DNS" {
+	switch proto {
+	case "DNS":
 		paddedProto = coloredProto + "  "
-	} else if proto == "HTTP" || proto == "ICMP" {
+	case "HTTP", "ICMP":
 		paddedProto = coloredProto + " "
 	}
 

@@ -105,7 +105,7 @@ func ResolveTokenIP(targetToken *Token, state *netstate.State) (string, error) {
 			}
 		}
 		if IsSemanticToken(targetToken.HostPart) {
-			return "", fmt.Errorf("[vane] Error: Semantisches Token '%s' konnte nicht aufgelöst werden (kein aktiver Service-Finder oder Cache vorhanden).", targetToken.HostPart)
+			return "", fmt.Errorf("[vane] Error: Semantisches Token '%s' konnte nicht aufgelöst werden (kein aktiver Service-Finder oder Cache vorhanden)", targetToken.HostPart)
 		}
 	}
 
@@ -153,7 +153,7 @@ func ResolveTokenIP(targetToken *Token, state *netstate.State) (string, error) {
 					}
 					return ResolveIPv6ULA(state.IPv6Global, targetToken.HostPart), nil
 				}
-				return "", fmt.Errorf("[vane] Error: Keine valide IPv4-Adresse auf Interface %s.", targetToken.Interface)
+				return "", fmt.Errorf("[vane] Error: Keine valide IPv4-Adresse auf Interface %s", targetToken.Interface)
 			}
 
 			// Passive APIPA validation check to catch DHCP lease errors early
@@ -208,7 +208,7 @@ func ResolveTokenIP(targetToken *Token, state *netstate.State) (string, error) {
 						if err == nil && resolvedIP != "" {
 							targetIP = resolvedIP
 						} else {
-							return "", fmt.Errorf("[vane] Error: MAC-Suffix '%s' stimmt nicht mit Interface %s überein.", targetToken.HostPart, state.InterfaceName)
+							return "", fmt.Errorf("[vane] Error: MAC-Suffix '%s' stimmt nicht mit Interface %s überein", targetToken.HostPart, state.InterfaceName)
 						}
 					}
 				} else {
@@ -219,7 +219,7 @@ func ResolveTokenIP(targetToken *Token, state *netstate.State) (string, error) {
 
 	case "<": // External WAN (IPv6)
 		if state.IPv6Global == nil {
-			return "", fmt.Errorf("[vane] Error: Keine globale IPv6-Adresse (GUA) auf Interface %s.", targetToken.Interface)
+			return "", fmt.Errorf("[vane] Error: Keine globale IPv6-Adresse (GUA) auf Interface %s", targetToken.Interface)
 		}
 		targetIP = ResolveIPv6WAN(state.IPv6Global, targetToken.HostPart, state.HardwareAddr)
 
@@ -252,7 +252,7 @@ func ResolveTokenIP(targetToken *Token, state *netstate.State) (string, error) {
 		}
 
 	default:
-		return "", fmt.Errorf("[vane] Error: Unbekannter Richtungs-Modifikator '%s'.", targetToken.Direction)
+		return "", fmt.Errorf("[vane] Error: Unbekannter Richtungs-Modifikator '%s'", targetToken.Direction)
 	}
 
 	return targetIP, nil

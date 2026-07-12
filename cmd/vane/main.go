@@ -513,9 +513,10 @@ func main() {
 
 	// Automatically append protocol-specific port flags for SSH/SCP
 	if targetToken.Port != "" {
-		if nativeCmd == "ssh" {
+		switch nativeCmd {
+		case "ssh":
 			finalArgs = append(finalArgs, "-p", targetToken.Port)
-		} else if nativeCmd == "scp" {
+		case "scp":
 			finalArgs = append(finalArgs, "-P", targetToken.Port)
 		}
 	}

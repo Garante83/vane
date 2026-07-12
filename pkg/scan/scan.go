@@ -273,7 +273,7 @@ func peekHost(ip string, ports []string) (bool, []string) {
 			address := net.JoinHostPort(ip, p)
 			conn, err := net.DialTimeout("tcp", address, 200*time.Millisecond)
 			if err == nil {
-				conn.Close()
+				_ = conn.Close()
 				lock.Lock()
 				alive = true
 				openPorts = append(openPorts, p)
@@ -300,7 +300,7 @@ func checkLocalPorts(ports []string) []string {
 		if err != nil {
 			open = append(open, port)
 		} else {
-			ln.Close()
+			_ = ln.Close()
 		}
 	}
 	return open

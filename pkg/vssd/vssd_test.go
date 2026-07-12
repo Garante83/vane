@@ -20,12 +20,12 @@ func TestCacheManagement(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp home: %v", err)
 	}
-	defer os.RemoveAll(tempHome)
+	defer func() { _ = os.RemoveAll(tempHome) }()
 
 	// Override HOME variable so GetCachePath points to our temporary home
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tempHome)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tempHome)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
 	iface := "test_eth0"
 	token := "pve"
@@ -182,8 +182,8 @@ func TestEnsureCacheOwnershipSanity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
-	defer os.Remove(tempFile.Name())
-	tempFile.Close()
+	defer func() { _ = os.Remove(tempFile.Name()) }()
+	_ = tempFile.Close()
 
 	// Should run safely and do nothing since we are not root/sudo
 	EnsureCacheOwnership(tempFile.Name())
@@ -196,11 +196,11 @@ func TestRunTargetedDiscoverySanity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp home: %v", err)
 	}
-	defer os.RemoveAll(tempHome)
+	defer func() { _ = os.RemoveAll(tempHome) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tempHome)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tempHome)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
 	_, _ = RunTargetedDiscovery("lo")
 }
@@ -212,11 +212,11 @@ func TestRunSingleTargetDiscoverySanity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp home: %v", err)
 	}
-	defer os.RemoveAll(tempHome)
+	defer func() { _ = os.RemoveAll(tempHome) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tempHome)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tempHome)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
 	_, _ = RunSingleTargetDiscovery("lo", "127.0.0.1", "")
 }
@@ -226,11 +226,11 @@ func TestMergeIncomingRegistry(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp home: %v", err)
 	}
-	defer os.RemoveAll(tempHome)
+	defer func() { _ = os.RemoveAll(tempHome) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tempHome)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tempHome)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
 	iface := "eno1"
 
@@ -303,11 +303,11 @@ func TestCacheSelfHealing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp home: %v", err)
 	}
-	defer os.RemoveAll(tempHome)
+	defer func() { _ = os.RemoveAll(tempHome) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tempHome)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tempHome)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
 	cacheFile := filepath.Join(tempHome, ".config", "vane", "cache.json")
 	err = os.MkdirAll(filepath.Dir(cacheFile), 0700)

@@ -277,7 +277,7 @@ func matchHost(targetIP, targetMAC string, cacheMap InterfaceMap, results *map[s
 func dialHost(ip string, port int, timeout time.Duration) bool {
 	conn, err := net.DialTimeout("tcp", net.JoinHostPort(ip, strconv.Itoa(port)), timeout)
 	if err == nil {
-		conn.Close()
+		_ = conn.Close()
 		return true
 	}
 	return false
@@ -319,7 +319,7 @@ func peekServiceFingerprint(ip string, port int) string {
 	case 22: // SSH banner peeking
 		conn, err := net.DialTimeout("tcp", net.JoinHostPort(ip, "22"), 250*time.Millisecond)
 		if err == nil {
-			defer conn.Close()
+			defer func() { _ = conn.Close() }()
 			buf := make([]byte, 256)
 			_ = conn.SetReadDeadline(time.Now().Add(250 * time.Millisecond))
 			n, err := conn.Read(buf)
@@ -337,7 +337,7 @@ func peekServiceFingerprint(ip string, port int) string {
 	case 53: // DNS resolver check
 		conn, err := net.DialTimeout("udp", net.JoinHostPort(ip, "53"), 250*time.Millisecond)
 		if err == nil {
-			defer conn.Close()
+			defer func() { _ = conn.Close() }()
 			// Minimal valid DNS query for 'localhost' A record
 			query := []byte{
 				0x12, 0x34, // Transaction ID
@@ -367,7 +367,7 @@ func peekServiceFingerprint(ip string, port int) string {
 	case 6379: // Redis
 		conn, err := net.DialTimeout("tcp", net.JoinHostPort(ip, "6379"), 150*time.Millisecond)
 		if err == nil {
-			defer conn.Close()
+			defer func() { _ = conn.Close() }()
 			_, _ = conn.Write([]byte("PING\r\n"))
 			buf := make([]byte, 64)
 			_ = conn.SetReadDeadline(time.Now().Add(150 * time.Millisecond))
@@ -395,7 +395,7 @@ func peekServiceFingerprint(ip string, port int) string {
 		url := fmt.Sprintf("%s://%s:%d/", proto, ip, port)
 		resp, err := client.Get(url)
 		if err == nil {
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }()
 			buf := make([]byte, 2048)
 			n, _ := io.ReadFull(resp.Body, buf)
 			bodyStr := strings.ToLower(string(buf[:n]))
