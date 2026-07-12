@@ -335,6 +335,7 @@ func ResolveIPv6ULA(ula net.IP, hostPart string) string {
 // ResolveRemoteIPFromARP reads the dynamic system ARP table cache to map MAC hex suffixes to local subnet IPs
 func ResolveRemoteIPFromARP(ifaceName, suffix string) (string, error) {
 	if runtime.GOOS == "windows" {
+		// Windows: PowerShell required – Go stdlib has no direct access to ARP neighbor tables
 		cmd := exec.Command("powershell", "-NoProfile", "-Command",
 			fmt.Sprintf("Get-NetNeighbor -InterfaceAlias '%s' | Select-Object IPAddress, LinkLayerAddress", ifaceName))
 		out, err := cmd.Output()
@@ -392,6 +393,7 @@ func ResolveRemoteIPFromARP(ifaceName, suffix string) (string, error) {
 // GetDefaultGateway retrieves the active IPv4 default gateway for a local interface
 func GetDefaultGateway(ifaceName string) (string, error) {
 	if runtime.GOOS == "windows" {
+		// Windows: PowerShell required – Go stdlib has no direct access to routing table
 		cmd := exec.Command("powershell", "-NoProfile", "-Command",
 			fmt.Sprintf("Get-NetRoute -InterfaceAlias '%s' -DestinationPrefix '0.0.0.0/0' | Select-Object -ExpandProperty NextHop", ifaceName))
 		out, err := cmd.Output()
@@ -458,6 +460,7 @@ func parseGatewayHex(hexStr string) (string, error) {
 // GetIPv6DefaultGateway retrieves the active IPv6 default gateway for an interface
 func GetIPv6DefaultGateway(ifaceName string) (string, error) {
 	if runtime.GOOS == "windows" {
+		// Windows: PowerShell required – Go stdlib has no direct access to IPv6 routing table
 		cmd := exec.Command("powershell", "-NoProfile", "-Command",
 			fmt.Sprintf("Get-NetRoute -InterfaceAlias '%s' -AddressFamily IPv6 -DestinationPrefix '::/0' | Select-Object -ExpandProperty NextHop", ifaceName))
 		out, err := cmd.Output()

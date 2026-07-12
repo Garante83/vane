@@ -2,6 +2,7 @@ package scan
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -11,7 +12,11 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"vane/pkg/util"
 )
+
+// ErrReexec indicates the process was re-executed with sudo; caller should exit.
+var ErrReexec = errors.New("re-executed with sudo")
 
 // ScanResult represents an active host found during the neighbor scan
 type ScanResult struct {
@@ -33,7 +38,7 @@ func PerformScan(ifaceName string) error {
 		}
 
 		if needsPassword {
-			if getSystemLanguage() == "de" {
+			if util.GetSystemLanguage() == "de" {
 				fmt.Println("  \x1b[1;33m[!] root-Rechte für Subnetz-Sweep benötigt. Starte neu mit 'sudo'...\x1b[0m")
 			} else {
 				fmt.Println("  \x1b[1;33m[!] root privileges required for subnet sweep. Relaunching with 'sudo'...\x1b[0m")
@@ -49,7 +54,7 @@ func PerformScan(ifaceName string) error {
 		if err != nil {
 			return fmt.Errorf("sudo re-execution failed: %w", err)
 		}
-		os.Exit(0)
+		return ErrReexec
 	}
 
 	// 2. Locate interface and IP
@@ -471,14 +476,4 @@ func resolveVendor(mac string) string {
 		return name
 	}
 	return ""
-}
-
-func getSystemLanguage() string {
-	for _, env := range []string{"LANG", "LC_ALL", "LC_MESSAGES"} {
-		val := os.Getenv(env)
-		if strings.HasPrefix(strings.ToLower(val), "de") {
-			return "de"
-		}
-	}
-	return "en"
 }

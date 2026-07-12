@@ -4,6 +4,7 @@ package sniff
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -12,7 +13,11 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"vane/pkg/util"
 )
+
+// ErrReexec indicates the process was re-executed with sudo; caller should exit.
+var ErrReexec = errors.New("re-executed with sudo")
 
 // htons converts host byte order to network byte order
 func htons(i uint16) uint16 {
@@ -33,7 +38,7 @@ func PerformSniff(ifaceName string) error {
 			}
 
 			if needsPassword {
-				if getSystemLanguage() == "de" {
+				if util.GetSystemLanguage() == "de" {
 					fmt.Println("  \x1b[1;33m[!] root-Rechte für Packet Sniffing benötigt. Starte neu mit 'sudo'...\x1b[0m")
 				} else {
 					fmt.Println("  \x1b[1;33m[!] root privileges required for packet sniffing. Relaunching with 'sudo'...\x1b[0m")
@@ -48,7 +53,7 @@ func PerformSniff(ifaceName string) error {
 			if errRun != nil {
 				return fmt.Errorf("sudo re-execution failed: %w", errRun)
 			}
-			os.Exit(0)
+			return ErrReexec
 		}
 		return fmt.Errorf("failed to open raw socket: %w", err)
 	}
@@ -305,7 +310,7 @@ func printLog(proto, src, dst, detail string) {
 	}
 
 	// Truncate first to prevent cutting off color codes
-	coloredDetail := truncateStr(detail, 40)
+	coloredDetail := util.TruncateStr(detail, 40)
 
 	// Apply layout-safe ANSI colors to methods and query actions
 	if strings.HasPrefix(coloredDetail, "QUERY:") {
@@ -331,14 +336,4 @@ func printLog(proto, src, dst, detail string) {
 	defer UnlockOutput()
 
 	fmt.Printf("  %-8s  %s  %-15s  %-15s  %s\n", timeStr, paddedProto, src, dst, coloredDetail)
-}
-
-func getSystemLanguage() string {
-	for _, env := range []string{"LANG", "LC_ALL", "LC_MESSAGES"} {
-		val := os.Getenv(env)
-		if strings.HasPrefix(strings.ToLower(val), "de") {
-			return "de"
-		}
-	}
-	return "en"
 }

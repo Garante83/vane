@@ -2,7 +2,6 @@ package sniff
 
 import (
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 )
@@ -11,16 +10,6 @@ var (
 	writeMutex sync.Mutex
 	hasOutput  bool
 )
-
-// truncateStr prevents terminal text overflows in log detail columns
-func truncateStr(s string, maxLen int) string {
-	s = strings.ReplaceAll(s, "\r", "")
-	s = strings.ReplaceAll(s, "\n", " ")
-	if len(s) > maxLen {
-		return s[:maxLen-3] + "..."
-	}
-	return s
-}
 
 // StartStandbySpinner runs a background goroutine to display an active listening spinner.
 // It stops displaying once a packet is logged.

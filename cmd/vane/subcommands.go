@@ -16,6 +16,7 @@ import (
 	"vane/pkg/peeker"
 	"vane/pkg/transfer"
 	"vane/pkg/uip"
+	"vane/pkg/util"
 	"vane/pkg/vssd"
 )
 
@@ -130,12 +131,7 @@ func printInterfaceMatrix() {
 		os.Exit(1)
 	}
 
-	truncateStr := func(s string, maxLen int) string {
-		if len(s) <= maxLen {
-			return s
-		}
-		return s[:maxLen-3] + "..."
-	}
+	truncateStr := util.TruncateStr
 
 	fmt.Println("┌──────────────────────────────────────────────────────────────────────────────┐")
 	fmt.Println("│  vane ─ Local Network Interface Matrix                                       │")

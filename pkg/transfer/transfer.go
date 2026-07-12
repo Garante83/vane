@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"vane/pkg/util"
 )
 
 // generateSelfSignedCert creates an ephemeral TLS certificate completely in memory (zero disk trace)
@@ -194,7 +195,7 @@ func PerformSend(filePath, code string) error {
 	}
 
 	fmt.Printf("┌────────────────────────────────────────────────────────────────────┐\n")
-	fmt.Printf("│  vane send ─ Sending: %-44s │\n", truncateStr(filepath.Base(filePath), 44))
+	fmt.Printf("│  vane send ─ Sending: %-44s │\n", util.TruncateStr(filepath.Base(filePath), 44))
 	fmt.Printf("└────────────────────────────────────────────────────────────────────┘\n")
 	fmt.Printf("  Connecting to peer %s...\033[K", targetAddr)
 
@@ -207,6 +208,7 @@ func PerformSend(filePath, code string) error {
 	fmt.Printf(" Connected!\n")
 
 	// Upgrade to TLS with untrusted verification
+	// InsecureSkipVerify is safe here: self-signed cert + HMAC auth makes CA verification redundant
 	config := &tls.Config{
 		InsecureSkipVerify: true,
 	}
@@ -397,7 +399,7 @@ func PerformReceive(port string) error {
 	// Clear listen output and print download panel
 	fmt.Printf("\033[9A\r") // Move cursor up past the standing panel
 	fmt.Printf("┌────────────────────────────────────────────────────────────────────┐\033[K\n")
-	fmt.Printf("│  vane recv ─ Receiving: %-42s │\033[K\n", truncateStr(filename, 42))
+	fmt.Printf("│  vane recv ─ Receiving: %-42s │\033[K\n", util.TruncateStr(filename, 42))
 	fmt.Printf("└────────────────────────────────────────────────────────────────────┘\033[K\n")
 	fmt.Printf("  File Size:  %.2f MB\033[K\n", float64(fileSize)/(1024*1024))
 
@@ -449,13 +451,6 @@ func PerformReceive(port string) error {
 }
 
 // truncateStr ensures long filenames don't overflow fixed borders
-func truncateStr(s string, maxLen int) string {
-	if len(s) > maxLen {
-		return s[:maxLen-3] + "..."
-	}
-	return s
-}
-
 // getLocalIPv4s retrieves all active non-loopback IPv4 addresses
 func getLocalIPv4s() []string {
 	var ips []string
@@ -513,6 +508,7 @@ func PerformRegistrySend(registryData []byte, code string) error {
 		return fmt.Errorf("failed to connect to receiver: %w", err)
 	}
 
+	// InsecureSkipVerify: self-signed cert + HMAC auth makes CA verification redundant
 	config := &tls.Config{InsecureSkipVerify: true}
 	conn := tls.Client(rawConn, config)
 	defer func() { _ = conn.Close() }()

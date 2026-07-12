@@ -11,6 +11,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"vane/pkg/util"
 )
 
 // PerformSniff implements a live connection-to-process mapper on Windows
@@ -44,7 +45,7 @@ func PerformSniff(ifaceName string) error {
 					LockOutput()
 					seen[key] = true
 					fmt.Printf("  %-8s  %-5s  %-21s  %-21s  %s\n",
-						timeStr, conn.Proto, conn.Local, conn.Foreign, truncateStr(conn.Process, 25))
+						timeStr, conn.Proto, conn.Local, conn.Foreign, util.TruncateStr(conn.Process, 25))
 					UnlockOutput()
 				}
 			}

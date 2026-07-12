@@ -386,6 +386,7 @@ func peekServiceFingerprint(ip string, port int) string {
 	client := &http.Client{
 		Timeout: 400 * time.Millisecond,
 		Transport: &http.Transport{
+			// InsecureSkipVerify: service fingerprinting only, no sensitive data exchanged
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		},
 	}

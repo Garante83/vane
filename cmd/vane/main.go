@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -145,6 +146,9 @@ func main() {
 
 		err = scan.PerformScan(state.InterfaceName)
 		if err != nil {
+			if errors.Is(err, scan.ErrReexec) {
+				os.Exit(0)
+			}
 			fmt.Fprintf(os.Stderr, "[vane] Error: %v\n", err)
 			os.Exit(1)
 		}
@@ -272,6 +276,9 @@ func main() {
 
 		err := sniff.PerformSniff(ifaceName)
 		if err != nil {
+			if errors.Is(err, sniff.ErrReexec) {
+				os.Exit(0)
+			}
 			fmt.Fprintf(os.Stderr, "[vane] Error: %v\n", err)
 			os.Exit(1)
 		}
@@ -383,7 +390,19 @@ func main() {
 			ifaceName = getDefaultActiveInterface()
 		}
 		if ifaceName == "" {
-			ifaceName = "eno1" // absolute fallback
+			// List available interfaces to help the user
+			ifaces, _ := net.Interfaces()
+			if getSystemLanguage() == "de" {
+				fmt.Fprintf(os.Stderr, "[vane] Fehler: Keine gültige Netzwerk-Schnittstelle gefunden.\n")
+				fmt.Fprintf(os.Stderr, "  Verfügbare Schnittstellen:\n")
+			} else {
+				fmt.Fprintf(os.Stderr, "[vane] Error: No valid network interface found.\n")
+				fmt.Fprintf(os.Stderr, "  Available interfaces:\n")
+			}
+			for _, iface := range ifaces {
+				fmt.Fprintf(os.Stderr, "    - %s\n", iface.Name)
+			}
+			os.Exit(1)
 		}
 
 		// Resolve alias/index to real name if passed (e.g. "1" -> "eno1")

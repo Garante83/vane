@@ -577,6 +577,7 @@ func validateAndResolveIPInput(input, ifaceName string) (string, error) {
 func lookupMACByIP(ifaceName, ip string) (string, error) {
 	ip = strings.TrimSpace(ip)
 	if runtime.GOOS == "windows" {
+		// Windows: PowerShell required – Go stdlib has no direct access to adapter MAC-to-IP mappings
 		cmd := exec.Command("powershell", "-NoProfile", "-Command",
 			fmt.Sprintf("Get-NetNeighbor -InterfaceAlias '%s' -IPAddress '%s' | Select-Object -ExpandProperty LinkLayerAddress", ifaceName, ip))
 		out, err := cmd.Output()

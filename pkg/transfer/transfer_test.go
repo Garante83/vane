@@ -3,6 +3,7 @@ package transfer
 import (
 	"regexp"
 	"testing"
+	"vane/pkg/util"
 )
 
 func TestGeneratePairingCode(t *testing.T) {
@@ -62,9 +63,9 @@ func TestTruncateStr(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		res := truncateStr(tc.input, tc.maxLen)
+		res := util.TruncateStr(tc.input, tc.maxLen)
 		if res != tc.expected {
-			t.Errorf("truncateStr(%q, %d) = %q, expected %q", tc.input, tc.maxLen, res, tc.expected)
+			t.Errorf("util.TruncateStr(%q, %d) = %q, expected %q", tc.input, tc.maxLen, res, tc.expected)
 		}
 	}
 }

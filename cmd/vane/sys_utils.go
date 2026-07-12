@@ -3,42 +3,16 @@ package main
 import (
 	"fmt"
 	"net"
-	"os"
-	"os/exec"
-	"runtime"
 	"strconv"
 	"strings"
 
 	"vane/pkg/netstate"
+	"vane/pkg/util"
 )
 
 // getSystemLanguage detects the system locale via environment variables or PowerShell
 func getSystemLanguage() string {
-	for _, env := range []string{"LANG", "LC_ALL", "LC_MESSAGES"} {
-		val := os.Getenv(env)
-		if val != "" {
-			valLower := strings.ToLower(val)
-			if strings.HasPrefix(valLower, "de") {
-				return "de"
-			}
-			if strings.HasPrefix(valLower, "en") {
-				return "en"
-			}
-		}
-	}
-
-	if runtime.GOOS == "windows" {
-		cmd := exec.Command("powershell", "-NoProfile", "-Command", "[System.Globalization.CultureInfo]::CurrentCulture.TwoLetterISOLanguageName")
-		out, err := cmd.Output()
-		if err == nil {
-			lang := strings.TrimSpace(strings.ToLower(string(out)))
-			if lang == "de" {
-				return "de"
-			}
-		}
-	}
-
-	return "en"
+	return util.GetSystemLanguage()
 }
 
 // getDefaultActiveInterface detects the first active, non-loopback network interface with a valid IPv4 address

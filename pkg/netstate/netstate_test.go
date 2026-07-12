@@ -15,8 +15,18 @@ func TestGetInterfaceState(t *testing.T) {
 		t.Skip("skipping test: no network interfaces found on host")
 	}
 
-	// Dynamically query the first active interface name on the system
-	target := ifaces[0].Name
+	// Find first non-loopback interface for robust testing
+	var target string
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagLoopback == 0 {
+			target = iface.Name
+			break
+		}
+	}
+	if target == "" {
+		t.Skip("skipping test: no non-loopback interface found")
+	}
+
 	state, err := GetInterfaceState(target)
 	if err != nil {
 		t.Fatalf("GetInterfaceState(%q) failed: %v", target, err)

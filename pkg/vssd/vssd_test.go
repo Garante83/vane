@@ -88,6 +88,9 @@ func TestPassiveARPDiscovery(t *testing.T) {
 	if results == nil {
 		t.Error("expected non-nil results map")
 	}
+	if len(results) == 0 {
+		t.Log("note: ARP results empty on loopback (expected in most environments)")
+	}
 }
 
 // TestIsAmbiguousPort verifies that ambiguous and unique ports are correctly segregated.
@@ -202,7 +205,13 @@ func TestRunTargetedDiscoverySanity(t *testing.T) {
 	_ = os.Setenv("HOME", tempHome)
 	defer func() { _ = os.Setenv("HOME", origHome) }()
 
-	_, _ = RunTargetedDiscovery("lo")
+	results, err := RunTargetedDiscovery("lo")
+	if err != nil {
+		t.Logf("RunTargetedDiscovery returned error (may be expected on loopback): %v", err)
+	}
+	if results == nil {
+		t.Log("note: no discovery results on loopback (expected)")
+	}
 }
 
 // TestRunSingleTargetDiscoverySanity runs RunSingleTargetDiscovery on loopback for a single target
@@ -218,7 +227,13 @@ func TestRunSingleTargetDiscoverySanity(t *testing.T) {
 	_ = os.Setenv("HOME", tempHome)
 	defer func() { _ = os.Setenv("HOME", origHome) }()
 
-	_, _ = RunSingleTargetDiscovery("lo", "127.0.0.1", "")
+	result, err := RunSingleTargetDiscovery("lo", "127.0.0.1", "")
+	if err != nil {
+		t.Logf("RunSingleTargetDiscovery returned error (may be expected on loopback): %v", err)
+	}
+	if len(result) == 0 {
+		t.Log("note: no discovery result on loopback (expected)")
+	}
 }
 
 func TestMergeIncomingRegistry(t *testing.T) {
