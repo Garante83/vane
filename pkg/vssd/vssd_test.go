@@ -134,7 +134,7 @@ func TestPeekServiceFingerprint(t *testing.T) {
 		mu.Unlock()
 		w.Header().Set("Content-Type", "text/html")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(body))
+		_, _ = w.Write([]byte(body))
 	}))
 	defer ts.Close()
 
