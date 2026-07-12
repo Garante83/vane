@@ -8,10 +8,5 @@ linters:
     - staticcheck
     - unused
 
-linters-settings:
-  errcheck:
-    check-type-assertions: false
-    check-blank: false
-
 issues:
   max-same-issues: 10
