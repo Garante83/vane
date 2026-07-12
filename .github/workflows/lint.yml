@@ -25,4 +25,3 @@ jobs:
         with:
           version: latest
           skip-cache: true
-          skip-pkg-cache: true
