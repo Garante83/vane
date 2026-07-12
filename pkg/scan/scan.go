@@ -386,7 +386,7 @@ func getGatewayIP(ifaceName string) string {
 				for j := 0; j < 4; j++ {
 					start := 6 - j*2
 					val := 0
-					_, _ = fmt.Sscanf(gwHex[start:start+2], "%x", &val)
+					fmt.Sscanf(gwHex[start:start+2], "%x", &val)
 					ipBytes[j] = byte(val)
 				}
 				return fmt.Sprintf("%d.%d.%d.%d", ipBytes[0], ipBytes[1], ipBytes[2], ipBytes[3])

@@ -248,12 +248,12 @@ func PerformSend(filePath, code string) error {
 
 	var fnLenBuf [2]byte
 	binary.BigEndian.PutUint16(fnLenBuf[:], uint16(len(fnBytes)))
-	_, _ = conn.Write(fnLenBuf[:])
-	_, _ = conn.Write(fnBytes)
+	conn.Write(fnLenBuf[:])
+	conn.Write(fnBytes)
 
 	var szBuf [8]byte
 	binary.BigEndian.PutUint64(szBuf[:], uint64(fileSize))
-	_, _ = conn.Write(szBuf[:])
+	conn.Write(szBuf[:])
 
 	// 3. Stream file while hashing on-the-fly
 	fmt.Printf("  File Size:  %.2f MB\n", float64(fileSize)/(1024*1024))
@@ -366,9 +366,9 @@ func PerformReceive(port string) error {
 	expectedHMAC := computeHMAC(code, exporter)
 	if hmac.Equal(senderHMAC[:], expectedHMAC) {
 		// Write success confirmation byte
-		_, _ = conn.Write([]byte{1})
+		conn.Write([]byte{1})
 	} else {
-		_, _ = conn.Write([]byte{0})
+		conn.Write([]byte{0})
 		return fmt.Errorf("unauthorized pairing attempt blocked: HMAC mismatch")
 	}
 
@@ -546,13 +546,13 @@ func PerformRegistrySend(registryData []byte, code string) error {
 	fnBytes := []byte(filename)
 	var fnLenBuf [2]byte
 	binary.BigEndian.PutUint16(fnLenBuf[:], uint16(len(fnBytes)))
-	_, _ = conn.Write(fnLenBuf[:])
-	_, _ = conn.Write(fnBytes)
+	conn.Write(fnLenBuf[:])
+	conn.Write(fnBytes)
 
 	dataSize := len(registryData)
 	var szBuf [8]byte
 	binary.BigEndian.PutUint64(szBuf[:], uint64(dataSize))
-	_, _ = conn.Write(szBuf[:])
+	conn.Write(szBuf[:])
 
 	sendHash := sha256.New()
 	mw := io.MultiWriter(conn, sendHash)
@@ -633,9 +633,9 @@ func PerformRegistryReceive(port string) ([]byte, error) {
 
 	expectedHMAC := computeHMAC(code, exporter)
 	if hmac.Equal(senderHMAC[:], expectedHMAC) {
-		_, _ = conn.Write([]byte{1})
+		conn.Write([]byte{1})
 	} else {
-		_, _ = conn.Write([]byte{0})
+		conn.Write([]byte{0})
 		return nil, fmt.Errorf("unauthorized pairing attempt blocked")
 	}
 
@@ -676,7 +676,7 @@ func PerformRegistryReceive(port string) ([]byte, error) {
 			break
 		}
 		copy(registryData[totalRead:totalRead+int64(n)], buf[:n])
-		_, _ = mw.Write(buf[:n])
+		mw.Write(buf[:n])
 		totalRead += int64(n)
 	}
 

@@ -4,7 +4,7 @@
 
 # Variable Arguments Network Executor (vane)
 
-[![golangci-lint](https://github.com/Garante83/vane/actions/workflows/lint.yml/badge.svg)](https://github.com/Garante83/vane/actions/workflows/lint.yml)
+[![golangci-lint](https://github.com/DEIN_GITHUB_NAME/DEIN_REPO_NAME/actions/workflows/lint.yml/badge.svg)](https://github.com/DEIN_GITHUB_NAME/DEIN_REPO_NAME/actions/workflows/lint.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **vane** is a lightweight, zero-dependency command-line utility written in native Go that simplifies and automates network troubleshooting. It acts as an **intelligent, shell-safe proxy wrapper** around native networking tools (like `ping`, `ssh`, `curl`, `nmap`, `scp`, etc.) by dynamically resolving human-friendly interface-based syntax tokens into raw IPv4 or IPv6 addresses in real-time.
