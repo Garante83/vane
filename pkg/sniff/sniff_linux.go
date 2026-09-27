@@ -4,7 +4,6 @@ package sniff
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -15,9 +14,6 @@ import (
 	"time"
 	"vane/pkg/util"
 )
-
-// ErrReexec indicates the process was re-executed with sudo; caller should exit.
-var ErrReexec = errors.New("re-executed with sudo")
 
 // htons converts host byte order to network byte order
 func htons(i uint16) uint16 {
@@ -83,14 +79,10 @@ func PerformSniff(ifaceName string) error {
 	fmt.Printf(" ────────────────────────────────────────────────────────────────────────\n")
 
 	// 4. Graceful termination handler
+	// Registering the channel is enough: signal delivery interrupts the blocking
+	// Recvfrom syscall on Linux, so the loop below can exit and return normally.
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-sigChan
-		fmt.Printf("\n ────────────────────────────────────────────────────────────────────────\n")
-		fmt.Printf("  Sniffing stopped. Goodbye!\n")
-		os.Exit(0)
-	}()
 
 	StartStandbySpinner()
 
@@ -98,10 +90,14 @@ func PerformSniff(ifaceName string) error {
 	for {
 		n, _, err := syscall.Recvfrom(fd, buf, 0)
 		if err != nil {
-			continue
+			break // Interrupted by signal -> graceful shutdown
 		}
 		parsePacket(buf[:n])
 	}
+
+	fmt.Printf("\n ────────────────────────────────────────────────────────────────────────\n")
+	fmt.Printf("  Sniffing stopped. Goodbye!\n")
+	return nil
 }
 
 // parsePacket decodes Ethernet, IPv4, UDP (DNS) and TCP (HTTP) packets

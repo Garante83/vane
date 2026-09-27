@@ -7,13 +7,7 @@ import (
 	"strings"
 
 	"vane/pkg/netstate"
-	"vane/pkg/util"
 )
-
-// getSystemLanguage detects the system locale via environment variables or PowerShell
-func getSystemLanguage() string {
-	return util.GetSystemLanguage()
-}
 
 // getDefaultActiveInterface detects the first active, non-loopback network interface with a valid IPv4 address
 func getDefaultActiveInterface() string {

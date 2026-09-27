@@ -287,7 +287,7 @@ func handleDiscoverSubcommand(ifaceName string, persistent, sweepFlag, clearFlag
 		if err != nil {
 			return err
 		}
-		if getSystemLanguage() == "de" {
+		if util.GetSystemLanguage() == "de" {
 			fmt.Printf("  \x1b[1;32m✔ Registry erfolgreich synchronisiert! %d Einträge hinzugefügt/aktualisiert, %d Einträge als Konflikt-Alias demotiert.\x1b[0m\n", added, demoted)
 		} else {
 			fmt.Printf("  \x1b[1;32m✔ Registry successfully synchronized! %d entries added/updated, %d entries demoted as conflict aliases.\x1b[0m\n", added, demoted)
@@ -302,7 +302,7 @@ func handleDiscoverSubcommand(ifaceName string, persistent, sweepFlag, clearFlag
 			return err
 		}
 		if len(localMap) == 0 {
-			if getSystemLanguage() == "de" {
+			if util.GetSystemLanguage() == "de" {
 				return fmt.Errorf("dein lokaler Registry-Cache für Interface %s ist leer. Es gibt nichts zu exportieren", ifaceName)
 			}
 			return fmt.Errorf("your local registry cache for interface %s is empty. Nothing to export", ifaceName)
@@ -320,7 +320,7 @@ func handleDiscoverSubcommand(ifaceName string, persistent, sweepFlag, clearFlag
 			}
 		}
 		if code == "" {
-			if getSystemLanguage() == "de" {
+			if util.GetSystemLanguage() == "de" {
 				return fmt.Errorf("bitte gib den Empfänger-Code an (z. B. vane discover --export --code 192.168.178.50#1234-5678)")
 			}
 			return fmt.Errorf("please specify the receiver pairing code (e.g. vane discover --export --code 192.168.178.50#1234-5678)")
@@ -338,7 +338,7 @@ func handleDiscoverSubcommand(ifaceName string, persistent, sweepFlag, clearFlag
 
 		// If cache file doesn't exist, tell the user it is already empty
 		if _, errStat := os.Stat(path); os.IsNotExist(errStat) {
-			if getSystemLanguage() == "de" {
+			if util.GetSystemLanguage() == "de" {
 				fmt.Println("  \x1b[1;33m[!] Der Service-Cache ist bereits leer.\x1b[0m")
 			} else {
 				fmt.Println("  \x1b[1;33m[!] The service cache is already empty.\x1b[0m")
@@ -348,7 +348,7 @@ func handleDiscoverSubcommand(ifaceName string, persistent, sweepFlag, clearFlag
 
 		// Ask for confirmation in clean Vane styling
 		var response string
-		if getSystemLanguage() == "de" {
+		if util.GetSystemLanguage() == "de" {
 			fmt.Print("  \x1b[1;33m[?] Möchtest du den Vane-Service-Cache wirklich löschen? [Y/n]:\x1b[0m ")
 		} else {
 			fmt.Print("  \x1b[1;33m[?] Are you sure you want to clear the Vane service cache? [Y/n]:\x1b[0m ")
@@ -360,13 +360,13 @@ func handleDiscoverSubcommand(ifaceName string, persistent, sweepFlag, clearFlag
 		// Default to Yes if they press Enter (empty response) or input y/yes/ja
 		if response == "" || response == "y" || response == "yes" || response == "ja" {
 			_ = os.Remove(path)
-			if getSystemLanguage() == "de" {
+			if util.GetSystemLanguage() == "de" {
 				fmt.Println("  \x1b[1;32m✔ Cache wurde erfolgreich gelöscht!\x1b[0m")
 			} else {
 				fmt.Println("  \x1b[1;32m✔ Cache cleared successfully!\x1b[0m")
 			}
 		} else {
-			if getSystemLanguage() == "de" {
+			if util.GetSystemLanguage() == "de" {
 				fmt.Println("  \x1b[1;31m[x] Löschvorgang abgebrochen.\x1b[0m")
 			} else {
 				fmt.Println("  \x1b[1;31m[x] Cache clear cancelled.\x1b[0m")
@@ -402,13 +402,13 @@ func handleDiscoverSubcommand(ifaceName string, persistent, sweepFlag, clearFlag
 					return
 				default:
 					if targetIP != "" {
-						if getSystemLanguage() == "de" {
+						if util.GetSystemLanguage() == "de" {
 							fmt.Printf("\r  %s Führe gezieltes Port-Fingerprinting für %s aus... ☕", spinner[idx], targetIP)
 						} else {
 							fmt.Printf("\r  %s Running targeted port fingerprinting for %s... ☕", spinner[idx], targetIP)
 						}
 					} else {
-						if getSystemLanguage() == "de" {
+						if util.GetSystemLanguage() == "de" {
 							fmt.Printf("\r  %s Führe aktiven Nachbarschafts-Sweep aus (%s)... ☕", spinner[idx], ifaceName)
 						} else {
 							fmt.Printf("\r  %s Running active neighborhood sweep (%s)... ☕", spinner[idx], ifaceName)
@@ -445,7 +445,7 @@ func handleDiscoverSubcommand(ifaceName string, persistent, sweepFlag, clearFlag
 					fmt.Print("\r\033[K") // Erase spinner line cleanly
 					return
 				default:
-					if getSystemLanguage() == "de" {
+					if util.GetSystemLanguage() == "de" {
 						fmt.Printf("\r  %s Lese passiven Cache und löse mDNS-Dienste auf... ☕", spinner[idx])
 					} else {
 						fmt.Printf("\r  %s Reading passive cache and resolving mDNS services... ☕", spinner[idx])
@@ -496,7 +496,7 @@ func handleDiscoverSubcommand(ifaceName string, persistent, sweepFlag, clearFlag
 	}
 
 	// Print high-visibility table aligned with gold standard interface matrix
-	if getSystemLanguage() == "de" {
+	if util.GetSystemLanguage() == "de" {
 		fmt.Println("  SERVICE                     STATUS      IP-ADRESSE                  MAC-ADRESSE        VANE-NOTATION")
 	} else {
 		fmt.Println("  SERVICE                     STATUS      IP ADDRESS                  MAC ADDRESS        VANE NOTATION")
@@ -536,7 +536,7 @@ func handleDiscoverSubcommand(ifaceName string, persistent, sweepFlag, clearFlag
 	onlineCount := len(activeTokens)
 
 	if onlineCount == 0 {
-		if getSystemLanguage() == "de" {
+		if util.GetSystemLanguage() == "de" {
 			fmt.Println("  [!] Keine aktiven Services im Netzwerk gefunden. Nutze \"--sweep\" (-w) für eine aktive Suche.")
 		} else {
 			fmt.Println("  [!] No active services detected in the network. Use \"--sweep\" (-w) to search actively.")
@@ -614,26 +614,26 @@ func handleDiscoverSubcommand(ifaceName string, persistent, sweepFlag, clearFlag
 	fmt.Println(" " + strings.Repeat("─", 120))
 
 	if persistent {
-		if getSystemLanguage() == "de" {
+		if util.GetSystemLanguage() == "de" {
 			fmt.Println("\n  \x1b[1;32m✔ Mappings wurden erfolgreich in cache.json gespeichert (chmod 0600)!\x1b[0m")
 		} else {
 			fmt.Println("\n  \x1b[1;32m✔ Mappings successfully saved to cache.json (chmod 0600)!\x1b[0m")
 		}
 	} else if sweepFlag || targetIP != "" {
-		if getSystemLanguage() == "de" {
+		if util.GetSystemLanguage() == "de" {
 			fmt.Println("\n  Tipp: Nutze \"vane discover --persistent\" zum Speichern für lautlose Auflösung!")
 		} else {
 			fmt.Println("\n  Tip: Use \"vane discover --persistent\" to save mappings for stealthy local resolution!")
 		}
 	} else {
-		if getSystemLanguage() == "de" {
+		if util.GetSystemLanguage() == "de" {
 			fmt.Println("\n  Hinweis: Dies zeigt den passiv erkannten Cache-Stand. Nutze \"--sweep\" (-w) für einen aktiven Nachbarschafts-Sweep!")
 		} else {
 			fmt.Println("\n  Note: This shows the passive cached state. Use \"--sweep\" (-w) to run an active neighborhood sweep!")
 		}
 	}
 
-	if getSystemLanguage() == "de" {
+	if util.GetSystemLanguage() == "de" {
 		fmt.Println("  Tipp: Nutze \"--edit\" (-e) zum händischen Bearbeiten oder \"--clear\" (-c) zum Löschen des Caches.")
 	} else {
 		fmt.Println("  Tip: Use \"--edit\" (-e) to manually edit or \"--clear\" (-c) to clear the local cache.")
@@ -642,7 +642,7 @@ func handleDiscoverSubcommand(ifaceName string, persistent, sweepFlag, clearFlag
 	// Dynamic hint if a corrupted cache backup file exists
 	if cachePath, errPath := vssd.GetCachePath(); errPath == nil {
 		if _, errStat := os.Stat(cachePath + ".corrupted"); errStat == nil {
-			if getSystemLanguage() == "de" {
+			if util.GetSystemLanguage() == "de" {
 				fmt.Printf("  \x1b[1;33m[!] Hinweis: Eine beschädigte Cache-Backup-Datei wurde unter '%s.corrupted' gesichert.\x1b[0m\n", cachePath)
 			} else {
 				fmt.Printf("  \x1b[1;33m[!] Note: A corrupted cache backup file is stored at '%s.corrupted'.\x1b[0m\n", cachePath)
@@ -684,7 +684,7 @@ func getDirectionName(dir, lang string) string {
 
 // handleExplainSubcommand implements the 'vane explain' command to visualize notation resolution step-by-step
 func handleExplainSubcommand(input string) {
-	lang := getSystemLanguage()
+	lang := util.GetSystemLanguage()
 
 	// Parse input notation
 	targetToken, isVane := uip.ExtractToken(input)

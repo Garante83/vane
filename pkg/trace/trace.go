@@ -231,7 +231,6 @@ func printStatsGrid(target, targetIP string, stats []*HopStats) {
 	fmt.Print("  [Ctrl+C] to exit. Monitoring latency in real-time...\033[K")
 }
 
-// truncateStr ensures text fields never overflow the visually aligned box borders
 // formatDuration formats RTT values cleanly for fixed-width columns
 func formatDuration(d time.Duration) string {
 	ms := float64(d) / float64(time.Millisecond)

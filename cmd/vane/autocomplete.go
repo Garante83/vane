@@ -8,6 +8,7 @@ import (
 
 	"vane/pkg/netstate"
 	"vane/pkg/uip"
+	"vane/pkg/util"
 	"vane/pkg/vssd"
 )
 
@@ -194,7 +195,7 @@ func formatQuotes(suggestions []string, hasLeadingQuote bool) []string {
 }
 
 func printAutocompleteHelp() {
-	if getSystemLanguage() == "de" {
+	if util.GetSystemLanguage() == "de" {
 		fmt.Println("vane autocomplete ─ Intelligente shell-spezifische Autovervollständigung")
 		fmt.Println("\nNutzung:")
 		fmt.Println("  vane autocomplete script         Gibt das universelle Shell-Vervollständigungsskript aus.")

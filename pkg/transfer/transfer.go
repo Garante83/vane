@@ -450,7 +450,6 @@ func PerformReceive(port string) error {
 	return nil
 }
 
-// truncateStr ensures long filenames don't overflow fixed borders
 // getLocalIPv4s retrieves all active non-loopback IPv4 addresses
 func getLocalIPv4s() []string {
 	var ips []string

@@ -63,7 +63,7 @@ func TestSuggestVaneNotation(t *testing.T) {
 
 func TestFormatQuotes(t *testing.T) {
 	input := []string{"\"eno1|>...pve\""}
-	
+
 	// Unquoted input
 	gotUnquoted := formatQuotes(input, false)
 	if gotUnquoted[0] != "\"eno1|>...pve\"" {

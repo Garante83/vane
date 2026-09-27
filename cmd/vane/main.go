@@ -17,6 +17,7 @@ import (
 	"vane/pkg/trace"
 	"vane/pkg/transfer"
 	"vane/pkg/uip"
+	"vane/pkg/util"
 	"vane/pkg/vssd"
 )
 
@@ -39,7 +40,7 @@ func main() {
 
 	// Dynamically detect system language for internationalization.
 	// If German is detected, switch to German translations.
-	if getSystemLanguage() == "de" {
+	if util.GetSystemLanguage() == "de" {
 		msg = de
 	}
 
@@ -105,7 +106,7 @@ func main() {
 
 	// 1.5 Interactive Manual Mode (vane doc / man / --manual / -m)
 	if len(os.Args) == 2 && (os.Args[1] == "doc" || os.Args[1] == "man" || os.Args[1] == "-m" || os.Args[1] == "--manual") {
-		doc.ShowManual(getSystemLanguage())
+		doc.ShowManual(util.GetSystemLanguage())
 		os.Exit(0)
 	}
 
@@ -158,7 +159,7 @@ func main() {
 	// 2.55 Subcommand: Explain (vane explain <notation>)
 	if os.Args[1] == "explain" {
 		if len(os.Args) < 3 {
-			if getSystemLanguage() == "de" {
+			if util.GetSystemLanguage() == "de" {
 				fmt.Fprintln(os.Stderr, "[vane] Fehler: Bitte gib eine Notation an (z. B. vane explain lan.1)")
 			} else {
 				fmt.Fprintln(os.Stderr, "[vane] Error: Please specify a notation to explain (e.g. vane explain lan.1)")
@@ -334,7 +335,7 @@ func main() {
 			_, isVane := uip.ExtractToken(targetSpec)
 			isIP := net.ParseIP(targetSpec) != nil
 			if !isVane && !isIP {
-				if getSystemLanguage() == "de" {
+				if util.GetSystemLanguage() == "de" {
 					fmt.Fprintf(os.Stderr, "[vane] Fehler: Ungültiges Scan-Ziel '%s'. Das Ziel muss eine valide IP-Adresse oder die strikte Vane-Notation sein (z.B. '1|>...pve' oder 'eno1|>...pve').\n", targetSpec)
 				} else {
 					fmt.Fprintf(os.Stderr, "[vane] Error: Invalid scan target '%s'. Target must be a valid IP address or a strict Vane notation (e.g. '1|>...pve' or 'eno1|>...pve').\n", targetSpec)
@@ -359,7 +360,7 @@ func main() {
 			}
 
 			if needsPassword {
-				if getSystemLanguage() == "de" {
+				if util.GetSystemLanguage() == "de" {
 					if editFlag {
 						fmt.Println("  \x1b[1;33m[!] root-Rechte für den Service-Editor benötigt. Starte neu mit 'sudo'...\x1b[0m")
 					} else {
@@ -392,7 +393,7 @@ func main() {
 		if ifaceName == "" {
 			// List available interfaces to help the user
 			ifaces, _ := net.Interfaces()
-			if getSystemLanguage() == "de" {
+			if util.GetSystemLanguage() == "de" {
 				fmt.Fprintf(os.Stderr, "[vane] Fehler: Keine gültige Netzwerk-Schnittstelle gefunden.\n")
 				fmt.Fprintf(os.Stderr, "  Verfügbare Schnittstellen:\n")
 			} else {

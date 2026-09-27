@@ -1,6 +1,7 @@
 package sniff
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -10,6 +11,9 @@ var (
 	writeMutex sync.Mutex
 	hasOutput  bool
 )
+
+// ErrReexec indicates the process was re-executed with sudo; caller should exit.
+var ErrReexec = errors.New("re-executed with sudo")
 
 // StartStandbySpinner runs a background goroutine to display an active listening spinner.
 // It stops displaying once a packet is logged.

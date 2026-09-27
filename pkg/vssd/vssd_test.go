@@ -86,10 +86,18 @@ func TestPassiveARPDiscovery(t *testing.T) {
 		t.Fatalf("RunPassiveARPDiscovery failed: %v", err)
 	}
 	if results == nil {
-		t.Error("expected non-nil results map")
+		t.Fatal("expected non-nil results map, got nil")
 	}
-	if len(results) == 0 {
-		t.Log("note: ARP results empty on loopback (expected in most environments)")
+	for token, entry := range results {
+		if token == "" {
+			t.Error("expected non-empty signature token key in results map")
+		}
+		if entry.IP == "" {
+			t.Errorf("entry %q missing IP address", token)
+		}
+		if entry.DiscoveryMethod == "" {
+			t.Errorf("entry %q missing DiscoveryMethod", token)
+		}
 	}
 }
 
@@ -210,7 +218,18 @@ func TestRunTargetedDiscoverySanity(t *testing.T) {
 		t.Logf("RunTargetedDiscovery returned error (may be expected on loopback): %v", err)
 	}
 	if results == nil {
-		t.Log("note: no discovery results on loopback (expected)")
+		t.Fatal("expected non-nil (possibly empty) results map, got nil")
+	}
+	for token, entry := range results {
+		if token == "" {
+			t.Error("expected non-empty signature token key in results map")
+		}
+		if entry.IP == "" {
+			t.Errorf("entry %q missing IP address", token)
+		}
+		if entry.DiscoveryMethod == "" {
+			t.Errorf("entry %q missing DiscoveryMethod", token)
+		}
 	}
 }
 
