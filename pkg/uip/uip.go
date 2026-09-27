@@ -1,3 +1,7 @@
+// Package uip implements the UIP (Unified IP) notation engine. It parses
+// Vane tokens like eno1|>...33 or 1|<...3e8e, resolves them against the
+// live interface state (IPv4 suffix overrides, EUI-64/IPv6 WAN, loopback,
+// APIPA) and bridges semantic service tokens via ARP cache matching.
 package uip
 
 import (

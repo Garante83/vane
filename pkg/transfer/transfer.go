@@ -1,3 +1,7 @@
+// Package transfer implements zero-config, peer-to-peer encrypted file
+// transfers (vane send / recv). Sessions use ephemeral TLS 1.3 with ECDHE,
+// session-bound HMAC pairing codes and parallel SHA-256 integrity checks.
+// It also supports registry-based cache exchange between peers.
 package transfer
 
 import (
@@ -85,6 +89,8 @@ type progressWriter struct {
 	startTime time.Time
 }
 
+// Write forwards bytes to the underlying writer while counting throughput
+// and refreshing the CLI progress bar (implements io.Writer).
 func (pw *progressWriter) Write(p []byte) (int, error) {
 	n, err := pw.dst.Write(p)
 	if n > 0 {
@@ -129,6 +135,8 @@ type progressReader struct {
 	startTime time.Time
 }
 
+// Read pulls bytes from the underlying reader while counting throughput
+// and refreshing the CLI progress bar (implements io.Reader).
 func (pr *progressReader) Read(p []byte) (int, error) {
 	n, err := pr.src.Read(p)
 	if n > 0 {

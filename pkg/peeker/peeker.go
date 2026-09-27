@@ -1,3 +1,6 @@
+// Package peeker performs fast, non-blocking TCP connectivity probing of
+// target ports. Vane calls it before handing execution to hanging commands
+// (ssh, curl, ...) to abort early when a target is unreachable.
 package peeker
 
 import (

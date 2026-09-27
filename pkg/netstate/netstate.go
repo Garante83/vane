@@ -1,3 +1,7 @@
+// Package netstate gathers the live state of a local network interface:
+// active IPv4/IPv6 addresses (link-local, ULA, global WAN), hardware MAC,
+// gateway routes and APIPA/DHCP-fallback detection. It is the shared data
+// source for UIP token resolution and the interface matrix output.
 package netstate
 
 import (

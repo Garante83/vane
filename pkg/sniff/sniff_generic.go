@@ -1,3 +1,7 @@
+// Package sniff implements real-time traffic capture for HTTP requests and
+// DNS queries. On Linux it uses raw AF_PACKET sockets with a pure-Go packet
+// parser; on Windows it falls back to a PowerShell connection-to-process
+// mapper. Unsupported platforms receive a descriptive stub error.
 package sniff
 
 import (

@@ -1,3 +1,7 @@
+// Package scan implements a concurrent, stealth-style TCP subnet sweeper.
+// It discovers active hosts on the subnet of a given interface, probes
+// common ports, queries the kernel ARP table and prints copy-pasteable
+// Vane tokens for every online device.
 package scan
 
 import (

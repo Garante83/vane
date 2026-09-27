@@ -1,3 +1,6 @@
+// Package trace implements an MTR-style interactive route and latency
+// profiler. It resolves the routing path to a target, concurrently pings
+// every hop and renders live sparkline graphs with loss/RTT statistics.
 package trace
 
 import (

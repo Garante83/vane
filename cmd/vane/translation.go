@@ -1,5 +1,7 @@
 package main
 
+// Translation bundles every localizable CLI string; instances exist for
+// English (en) and German (de), selected by the detected system language.
 type Translation struct {
 	ErrorNoIPv4      string
 	ErrorNoIPv6      string

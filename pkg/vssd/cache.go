@@ -1,3 +1,7 @@
+// Package vssd implements Vane Semi-Static Discovery: semantic service
+// resolution by token names (e.g. "pve", "nas", "hass"). It combines a
+// persistent local cache (cache.json), passive ARP/OUI fingerprinting,
+// mDNS lookups and active port fingerprinting to map services to hosts.
 package vssd
 
 import (

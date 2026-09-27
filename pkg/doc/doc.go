@@ -1,3 +1,6 @@
+// Package doc provides the interactive TUI manual (vane doc / man) with
+// system handbooks localized in English and German. Pages are rendered as
+// a scrollable in-terminal reader without external dependencies.
 package doc
 
 import (

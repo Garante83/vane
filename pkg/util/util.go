@@ -1,3 +1,6 @@
+// Package util bundles small shared helpers: string truncation for
+// aligned terminal output and system language detection (environment
+// variables with a Windows PowerShell fallback) used for bilingual output.
 package util
 
 import (
