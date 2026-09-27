@@ -11,9 +11,9 @@ build:
 build-enterprise:
 	go build -tags nosweep -ldflags "$(LDFLAGS)" -o vane ./cmd/vane
 
-# Führt alle Unit-Tests, Integrations-Smoke-Tests und Go Report Card Qualitätsprüfungen aus
+# Führt alle Unit-Tests, Integrations-Smoke-Tests und Qualitätsprüfungen aus (gofmt & go vet, CI: workflows/test.yml)
 test:
-	@echo "[vane] Führe Go Report Card Qualitätsprüfungen aus (gofmt & go vet)..."
+	@echo "[vane] Führe Qualitätsprüfungen aus (gofmt & go vet)..."
 	@if [ -n "$$(gofmt -s -l .)" ]; then \
 		echo "[vane] ❌ Fehler: Einige Go-Dateien sind nicht standardgemäß formatiert. Bitte führe 'gofmt -s -w .' aus!"; \
 		gofmt -s -l .; \
