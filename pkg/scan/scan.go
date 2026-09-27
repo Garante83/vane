@@ -367,18 +367,25 @@ func lookupMACForGateway(ifaceName, gatewayIP string) (string, error) {
 	return "", fmt.Errorf("not found")
 }
 
-// getSubnetIPs calculates all valid host IPv4 addresses inside a CIDR block
+// getSubnetIPs calculates all valid host IPv4 addresses inside a CIDR block.
+// Network and broadcast addresses are derived mask-aware, so any prefix
+// length (/8 up to /32) is handled correctly.
 func getSubnetIPs(ipNet *net.IPNet) []string {
 	var ips []string
-	ip := ipNet.IP.Mask(ipNet.Mask)
+	networkIP := ipNet.IP.To4().Mask(ipNet.Mask)
+	broadcastIP := make(net.IP, 4)
+	for i := 0; i < 4; i++ {
+		broadcastIP[i] = networkIP[i] | ^ipNet.Mask[i]
+	}
 
+	ip := networkIP
 	for {
 		ip = incrementIP(ip)
-		if !ipNet.Contains(ip) {
+		if len(ip) == 4 && !ipNet.Contains(ip) {
 			break
 		}
 		// Skip subnet network and broadcast addresses
-		if isNetworkOrBroadcastIP(ip, ipNet.Mask) {
+		if ip.Equal(networkIP) || ip.Equal(broadcastIP) {
 			continue
 		}
 		ips = append(ips, ip.String())
@@ -398,16 +405,24 @@ func incrementIP(ip net.IP) net.IP {
 	return next
 }
 
+// isNetworkOrBroadcastIP reports whether ip is the network or broadcast
+// address of the subnet identified by mask (mask-aware, any prefix length).
 func isNetworkOrBroadcastIP(ip net.IP, mask net.IPMask) bool {
 	ip4 := ip.To4()
 	if ip4 == nil {
 		return false
 	}
-	lastByte := ip4[3]
-	if lastByte == 0 || lastByte == 255 {
+	// Network address: all host bits are zero
+	networkIP := ip4.Mask(mask)
+	if ip4.Equal(networkIP) {
 		return true
 	}
-	return false
+	// Broadcast address: all host bits set
+	broadcastIP := make(net.IP, len(ip4))
+	for i := 0; i < len(ip4); i++ {
+		broadcastIP[i] = networkIP[i] | ^mask[i]
+	}
+	return ip4.Equal(broadcastIP)
 }
 
 // getGatewayIP scans routing tables to fetch the gateway IP

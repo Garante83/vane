@@ -120,21 +120,78 @@ func TestGetSubnetIPs(t *testing.T) {
 	}
 }
 
-// TestGetSubnetIPsSlash30 documents that network/broadcast filtering relies on
-// the trailing 0/255 rule, which is only correct for /24-style octet boundaries.
-// For a /30 the broadcast (.3) is not filtered - accepted product behaviour.
+// TestGetSubnetIPsSlash30 verifies mask-aware broadcast filtering for tiny
+// subnets: /30 has exactly 2 usable hosts (.1, .2); network (.0) and
+// broadcast (.3) are excluded correctly since the mask-aware fix.
 func TestGetSubnetIPsSlash30(t *testing.T) {
 	_, ipNet, err := net.ParseCIDR("192.168.1.0/30")
 	if err != nil {
 		t.Fatalf("failed to parse CIDR: %v", err)
 	}
 	ips := getSubnetIPs(ipNet)
-	// .0/.1/.2/.3 minus .0 (network) = 3 hosts listed including the real broadcast .3
-	if len(ips) != 3 {
-		t.Fatalf("expected 3 hosts in /30 (0/255 rule only), got %d: %v", len(ips), ips)
+	if len(ips) != 2 {
+		t.Fatalf("expected 2 usable hosts in /30, got %d: %v", len(ips), ips)
 	}
 	if ips[0] != "192.168.1.1" || ips[1] != "192.168.1.2" {
 		t.Errorf("unexpected hosts: %v", ips)
+	}
+}
+
+// TestGetSubnetIPsSlash25 verifies non-octet-aligned masks filter their
+// broadcast address correctly (last octet 128 is NOT broadcast for /25)
+func TestGetSubnetIPsSlash25(t *testing.T) {
+	_, ipNet, err := net.ParseCIDR("192.168.1.0/25")
+	if err != nil {
+		t.Fatalf("failed to parse CIDR: %v", err)
+	}
+	ips := getSubnetIPs(ipNet)
+	if len(ips) != 126 {
+		t.Fatalf("expected 126 usable hosts in /25, got %d", len(ips))
+	}
+	for _, ip := range ips {
+		if ip == "192.168.1.0" {
+			t.Error("network address .0 must be filtered")
+		}
+		if ip == "192.168.1.127" {
+			t.Error("true /25 broadcast address .127 must be filtered")
+		}
+	}
+	// .128 must still be scanned: it is a normal host in a /25
+	found := false
+	for _, ip := range ips {
+		if ip == "192.168.1.100" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("regular host .100 missing from /25 enumeration")
+	}
+}
+
+// TestGetSubnetIPsSlash31 covers point-to-point /31 masks: both addresses
+// classify as network (.0) and broadcast (.1), so enumeration yields none.
+// RFC 3021 point-to-point links are not sweepable anyway - documented behaviour.
+func TestGetSubnetIPsSlash31(t *testing.T) {
+	_, ipNet, err := net.ParseCIDR("10.0.0.0/31")
+	if err != nil {
+		t.Fatalf("failed to parse CIDR: %v", err)
+	}
+	ips := getSubnetIPs(ipNet)
+	if len(ips) != 0 {
+		t.Errorf("expected 0 scannable hosts in /31, got %d: %v", len(ips), ips)
+	}
+}
+
+// TestGetSubnetIPsSlash32 covers single-host masks
+func TestGetSubnetIPsSlash32(t *testing.T) {
+	_, ipNet, err := net.ParseCIDR("10.0.0.5/32")
+	if err != nil {
+		t.Fatalf("failed to parse CIDR: %v", err)
+	}
+	ips := getSubnetIPs(ipNet)
+	// The single address is simultaneously network and broadcast → filtered
+	if len(ips) != 0 {
+		t.Errorf("expected 0 scannable hosts in /32, got %d: %v", len(ips), ips)
 	}
 }
 
