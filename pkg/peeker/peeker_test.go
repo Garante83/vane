@@ -14,18 +14,18 @@ func TestCheckPort(t *testing.T) {
 
 	_, port, err := net.SplitHostPort(listener.Addr().String())
 	if err != nil {
-		listener.Close()
+		_ = listener.Close()
 		t.Fatalf("failed to parse listener port: %v", err)
 	}
 
 	// Verify reachable state
 	if !CheckPort("127.0.0.1", port) {
-		listener.Close()
+		_ = listener.Close()
 		t.Errorf("expected port %s on 127.0.0.1 to be reachable, but CheckPort returned false", port)
 	}
 
 	// 2. Test unreachable state by closing the listener
-	listener.Close()
+	_ = listener.Close()
 
 	if CheckPort("127.0.0.1", port) {
 		t.Errorf("expected closed port %s on 127.0.0.1 to be unreachable, but CheckPort returned true", port)

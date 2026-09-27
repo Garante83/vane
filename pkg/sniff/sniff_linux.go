@@ -1,4 +1,5 @@
 //go:build linux
+
 package sniff
 
 import (
@@ -6,10 +7,12 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"os/signal"
 	"strings"
 	"syscall"
 	"time"
+	"vane/pkg/util"
 )
 
 // htons converts host byte order to network byte order
@@ -23,11 +26,34 @@ func PerformSniff(ifaceName string) error {
 	fd, err := syscall.Socket(syscall.AF_PACKET, syscall.SOCK_RAW, int(htons(syscall.ETH_P_ALL)))
 	if err != nil {
 		if os.IsPermission(err) {
-			return fmt.Errorf("raw socket capture requires root privileges. Please run with sudo (e.g. sudo vane sniff %s)", ifaceName)
+			// Check if sudo requires a password (non-interactive check)
+			needsPassword := true
+			checkCmd := exec.Command("sudo", "-n", "true")
+			if errCheck := checkCmd.Run(); errCheck == nil {
+				needsPassword = false
+			}
+
+			if needsPassword {
+				if util.GetSystemLanguage() == "de" {
+					fmt.Println("  \x1b[1;33m[!] root-Rechte für Packet Sniffing benötigt. Starte neu mit 'sudo'...\x1b[0m")
+				} else {
+					fmt.Println("  \x1b[1;33m[!] root privileges required for packet sniffing. Relaunching with 'sudo'...\x1b[0m")
+				}
+			}
+
+			cmd := exec.Command("sudo", os.Args...)
+			cmd.Stdin = os.Stdin
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			errRun := cmd.Run()
+			if errRun != nil {
+				return fmt.Errorf("sudo re-execution failed: %w", errRun)
+			}
+			return ErrReexec
 		}
 		return fmt.Errorf("failed to open raw socket: %w", err)
 	}
-	defer syscall.Close(fd)
+	defer func() { _ = syscall.Close(fd) }()
 
 	// 2. Bind raw socket directly to specified interface
 	iface, err := net.InterfaceByName(ifaceName)
@@ -53,14 +79,10 @@ func PerformSniff(ifaceName string) error {
 	fmt.Printf(" ────────────────────────────────────────────────────────────────────────\n")
 
 	// 4. Graceful termination handler
+	// Registering the channel is enough: signal delivery interrupts the blocking
+	// Recvfrom syscall on Linux, so the loop below can exit and return normally.
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-sigChan
-		fmt.Printf("\n ────────────────────────────────────────────────────────────────────────\n")
-		fmt.Printf("  Sniffing stopped. Goodbye!\n")
-		os.Exit(0)
-	}()
 
 	StartStandbySpinner()
 
@@ -68,10 +90,14 @@ func PerformSniff(ifaceName string) error {
 	for {
 		n, _, err := syscall.Recvfrom(fd, buf, 0)
 		if err != nil {
-			continue
+			break // Interrupted by signal -> graceful shutdown
 		}
 		parsePacket(buf[:n])
 	}
+
+	fmt.Printf("\n ────────────────────────────────────────────────────────────────────────\n")
+	fmt.Printf("  Sniffing stopped. Goodbye!\n")
+	return nil
 }
 
 // parsePacket decodes Ethernet, IPv4, UDP (DNS) and TCP (HTTP) packets
@@ -168,11 +194,11 @@ func parsePacket(packet []byte) {
 				if len(parts) >= 2 {
 					method := parts[0]
 					path := parts[1]
-					
+
 					// Pad the method prefix (e.g. "GET:") to 7 characters to match "QUERY: " exactly
 					methodLabel := fmt.Sprintf("%s:", method)
 					prefix := fmt.Sprintf("%-7s", methodLabel)
-					
+
 					detail := ""
 					if host != "" {
 						detail = fmt.Sprintf("%s%s (Host: %s)", prefix, path, host)
@@ -272,14 +298,15 @@ func printLog(proto, src, dst, detail string) {
 
 	// Pad protocol to exactly 5 characters to maintain alignment despite ANSI escape tags
 	paddedProto := coloredProto
-	if proto == "DNS" {
+	switch proto {
+	case "DNS":
 		paddedProto = coloredProto + "  "
-	} else if proto == "HTTP" || proto == "ICMP" {
+	case "HTTP", "ICMP":
 		paddedProto = coloredProto + " "
 	}
 
 	// Truncate first to prevent cutting off color codes
-	coloredDetail := truncateStr(detail, 40)
+	coloredDetail := util.TruncateStr(detail, 40)
 
 	// Apply layout-safe ANSI colors to methods and query actions
 	if strings.HasPrefix(coloredDetail, "QUERY:") {

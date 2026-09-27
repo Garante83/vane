@@ -1,5 +1,7 @@
 package main
 
+// Translation bundles every localizable CLI string; instances exist for
+// English (en) and German (de), selected by the detected system language.
 type Translation struct {
 	ErrorNoIPv4      string
 	ErrorNoIPv6      string
@@ -19,6 +21,8 @@ type Translation struct {
 	HelpSend         string
 	HelpRecv         string
 	HelpSniff        string
+	HelpDiscover     string
+	HelpExplain      string
 	HelpManual       string
 	HelpMatrix       string
 	ConvertULA       string
@@ -46,6 +50,8 @@ var de = Translation{
 	HelpSend:         "  vane send <datei> --code <code> Sendet eine Datei hochperformant & verschlüsselt an einen Peer.",
 	HelpRecv:         "  vane recv [--port <port>]       Empfängt eine Datei hochperformant & verschlüsselt.",
 	HelpSniff:        "  vane sniff [interface]          Liest HTTP & DNS Anfragen auf dem Interface live mit.",
+	HelpDiscover:     "  vane discover [iface] [flags]   Sucht nach bekannten Services im LAN (Proxmox, NAS, Hass, Pi).",
+	HelpExplain:      "  vane explain <notation>         Löst eine Vane-Notation detailliert Schritt für Schritt auf.",
 	HelpManual:       "  vane doc / man                  Öffnet das interaktive TUI-Handbuch (System-Dokumentation).",
 	HelpMatrix:       "  vane                            Zeigt die Local Network Interface Matrix.",
 	ConvertULA:       "-> ULA (Intern):  %s%s\n",
@@ -68,12 +74,14 @@ var en = Translation{
 	HelpUsageHeader:  "\nUsage:",
 	HelpExecCommand:  "  vane <command> [arguments...]    Executes a command with Vane syntax substitution.",
 	HelpConvert:      "  vane -c <interface> <value>      Converts a hex or v4 value (Infocenter).",
-	HelpScan:         "  vane scan [interface]           Scans the active subnet of the interface (High-Visibility).",
-	HelpTrace:        "  vane trace <target>             Performs an interactive routing latency analysis (MTR).",
+	HelpScan:         "  vane scan [interface]            Scans the active subnet of the interface (High-Visibility).",
+	HelpTrace:        "  vane trace <target>              Performs an interactive routing latency analysis (MTR).",
 	HelpSend:         "  vane send <file> --code <code>   Sends a file with high performance & encryption to a peer.",
 	HelpRecv:         "  vane recv [--port <port>]        Receives a file with high performance & encryption.",
 	HelpSniff:        "  vane sniff [interface]           Sniffs live HTTP & DNS requests on the interface.",
-	HelpManual:       "  vane doc / man                  Opens the interactive TUI manual (system documentation).",
+	HelpDiscover:     "  vane discover [iface] [flags]    Discovers known services in the LAN (Proxmox, NAS, Hass, Pi).",
+	HelpExplain:      "  vane explain <notation>          Resolves a Vane notation step-by-step with details.",
+	HelpManual:       "  vane doc / man                   Opens the interactive TUI manual (system documentation).",
 	HelpMatrix:       "  vane                             Shows the Local Network Interface Matrix.",
 	ConvertULA:       "-> ULA (Internal): %s%s\n",
 	ConvertIPv4Equiv: "-> IPv4 Equivalent: %s\n",

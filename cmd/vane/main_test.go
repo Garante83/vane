@@ -4,6 +4,7 @@ import (
 	"net"
 	"testing"
 	"vane/pkg/uip"
+	"vane/pkg/util"
 )
 
 func TestComputeEUI64(t *testing.T) {
@@ -43,7 +44,7 @@ func TestExtractPortFromFlags(t *testing.T) {
 }
 
 func TestGetSystemLanguage(t *testing.T) {
-	lang := getSystemLanguage()
+	lang := util.GetSystemLanguage()
 	if lang != "de" && lang != "en" {
 		t.Errorf("expected de or en, got %q", lang)
 	}

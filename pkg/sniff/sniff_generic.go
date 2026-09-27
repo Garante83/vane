@@ -1,8 +1,12 @@
+// Package sniff implements real-time traffic capture for HTTP requests and
+// DNS queries. On Linux it uses raw AF_PACKET sockets with a pure-Go packet
+// parser; on Windows it falls back to a PowerShell connection-to-process
+// mapper. Unsupported platforms receive a descriptive stub error.
 package sniff
 
 import (
+	"errors"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 )
@@ -12,15 +16,8 @@ var (
 	hasOutput  bool
 )
 
-// truncateStr prevents terminal text overflows in log detail columns
-func truncateStr(s string, maxLen int) string {
-	s = strings.ReplaceAll(s, "\r", "")
-	s = strings.ReplaceAll(s, "\n", " ")
-	if len(s) > maxLen {
-		return s[:maxLen-3] + "..."
-	}
-	return s
-}
+// ErrReexec indicates the process was re-executed with sudo; caller should exit.
+var ErrReexec = errors.New("re-executed with sudo")
 
 // StartStandbySpinner runs a background goroutine to display an active listening spinner.
 // It stops displaying once a packet is logged.

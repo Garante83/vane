@@ -1,6 +1,9 @@
 package sniff
 
-import "testing"
+import (
+	"testing"
+	"vane/pkg/util"
+)
 
 func TestTruncateStr(t *testing.T) {
 	tests := []struct {
@@ -13,9 +16,9 @@ func TestTruncateStr(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		res := truncateStr(tc.input, tc.maxLen)
+		res := util.TruncateStr(tc.input, tc.maxLen)
 		if res != tc.expected {
-			t.Errorf("truncateStr(%q, %d) = %q, expected %q", tc.input, tc.maxLen, res, tc.expected)
+			t.Errorf("util.TruncateStr(%q, %d) = %q, expected %q", tc.input, tc.maxLen, res, tc.expected)
 		}
 	}
 }

@@ -42,6 +42,24 @@ Avoid typing long, case-sensitive physical adapter names (like `Ethernet 2` or `
 2. **Common Abbreviation Aliases**: Automatically maps standard Linux shorthand (e.g. `eth`, `wlan`, `wifi`) to their OS counterparts.
 3. **Prefix Matching**: Case-insensitive partial matching (e.g. `ether` matches `Ethernet`).
 
+### Why UIP? One Notation to Unify Both Worlds
+The Vane UIP (Unified IP) Notation was specifically engineered to bridge the complexity gap between legacy IPv4 networks and modern IPv6 infrastructure under a single, cohesive syntax. It offers massive operational advantages for both environments:
+
+#### ⚡ The Legacy IPv4 Advantage: Dynamic Subnet Agnosticism
+For pure IPv4 administrators, UIP removes the friction of shifting network environments (e.g., moving between home labs, office subnets, and remote VPNs):
+* **Context-Aware Suffix Resolution:** Instead of manually looking up your current IP address and typing `192.168.178.33`, you simply type `eno1|>...33`. Vane dynamically inspects the active adapter, extracts the current subnet prefix, and replaces only the final octets.
+* **Write Once, Run Anywhere:** The exact same command `vane ping "eno1|>...gw"` or `vane ssh user@"eno1|>...33"` works out of the box whether you are sitting in a `192.168.1.X` home network, a `10.0.0.X` corporate segment, or a `172.16.50.X` VPN tunnel. You never have to manually lookup or type the active subnet prefix again.
+
+#### 🛡️ The IPv6 Advantage: Eliminating Link-Local Complexity
+For dual-stack and modern IPv6 administrators, UIP eliminates the tedious formatting and typing of 128-bit hex strings:
+* **No More Link-Local Scope Formatting:** Typing standard IPv6 link-local addresses (like `fe80::b827:ebff:fe21:3e8e%eno1`) requires remembering the prefix, hardware hex, and appending the OS interface scope. Vane's `1|>...3e8e` calculates the correct EUI-64 address and appends the zone scope index automatically.
+* **Immunity to Floating SLAAC IPs:** Under dynamic networks, IPv6 addresses rotate frequently due to privacy extensions. UIP targets the host's permanent EUI-64 hardware signature, ensuring stable connections even as floating IPs change.
+
+#### 🏷️ The VSSD Advantage: Semantic Service Mapping (Both Worlds)
+Regardless of whether your local infrastructure runs on legacy IPv4 or dynamic dual-stack IPv6, VSSD (Vane Semi-Static Discovery) elevates your command line to **semantic addressing**:
+* **Target Services, Not IPs:** Instead of memorizing shifting DHCP leases or long IPv6 addresses, you connect directly to the service identity: `vane ssh user@"eno1|>...pve"`.
+* **Dynamic Resolution Engine:** VSSD dynamically resolves these semantic tokens in real-time by matching them against local ARP/NDP tables, mDNS advertisements, or a secure local cache (`cache.json`). If a server's IP changes, Vane resolves the new target instantly, ensuring your workflows never break.
+
 ---
 
 ## 2. Token Reference & Dynamic Resolution
@@ -83,25 +101,44 @@ Query and cross-reference network configurations bidirectionally on any active a
 
 ---
 
-## 3. Integrated Companion Utilities
+## 3. Quickstart & Handbooks Reference
+
+To get up and running with **vane** in under two minutes, please refer to our comprehensive:
+👉 **[Quickstart & Reference Guide (docs/01_quickstart.md)](docs/01_quickstart.md)**
+
+This companion handbook covers the essential 2-minute master workflow (loopback pings, service scans, and mapping semantic tokens) and provides a clean directory of the 11 specialized system handbooks located inside the [docs/](docs/) directory.
+
+---
+
+## 4. Integrated Companion Utilities
 
 While these built-in diagnostics are designed to seamlessly support the Vane Notation, they can also be used completely independently as standalone, simple network utilities in their own right—even if industry-standard tools already exist.
 
-### A. Subnet Scanner (`vane scan [interface]`)
+### 1. Subnet Scanner (`vane scan [interface]`)
 An ultra-fast, concurrent TCP stealth sweeper. It discovers active hosts on your subnet, sweeps common ports, queries the kernel ARP table, and outputs **direct copy-pasteable Vane tokens** in a stramm aligned grid.
 * *Purpose:* Instantly discover Vane-Notation targets currently online in your LAN.
 
-### B. Interactive Route & Latency Profiler (`vane trace <target>`)
+### 2. Interactive Route & Latency Profiler (`vane trace <target>`)
 A beautiful, real-time MTR-style path and jitter profiler. It queries routing hops and concurrent-pings them to produce live ASCII sparkline graphs.
 * *Purpose:* Fully supports Vane-Syntax (e.g., `vane trace "eno1|>...gw"`).
 
-### C. Traffic Sniffer (`vane sniff [interface]`)
+### 3. Traffic Sniffer (`vane sniff [interface]`)
 Pure-Go zero-dependency traffic capture tool. Monitors HTTP requests and DNS queries in real-time using native Linux Raw Sockets (`AF_PACKET`) or falls back to a PowerShell connection-to-process mapper on Windows.
 * *Purpose:* Debug protocol flows coming from resolved Vane targets.
 
-### D. Secure P2P Streaming (`vane send` / `vane recv`)
+### 4. Secure P2P Streaming (`vane send` / `vane recv`)
 Zero-config, peer-to-peer encrypted file transfers using ephemeral TLS 1.3 + ECDHE, session-bound HMAC pairing codes, and parallel SHA-256 integrity verification.
 * *Purpose:* High-speed file sharing between resolved Vane targets.
+
+### 5. Subnetwork Service Discovery (`vane discover [interface]`)
+An intelligent service discovery engine to map and profile your local services. It supports both passive local cache lookups and conscious active network scanning:
+* **Stealth Passive Mode (`vane discover`):** Instantly displays previously verified services from your secure local cache (`cache.json`) and resolves local `.local` mDNS hostnames without sending any active probe packets.
+* **Active Neighborhood Sweep (`vane discover -w` / `--sweep`):** Actively sweeps known network neighbors from your OS ARP cache, performing concurrent TCP port and payload fingerprinting to identify services.
+* **Targeted Port Fingerprinting (`vane discover <IP>`):** Runs deep fingerprinting queries on a specific host's ports.
+* **Service Autodetection:** Recognizes custom signatures such as Proxmox VE (`pve`), Open WebUI (`owu`), Nextcloud (`ncd`), Paperless-ngx (`ppl`), Home Assistant (`hass`), Nginx Proxy Manager (`rpx`), and AdGuard/Pi-hole (`dns`).
+* **Interactive TUI Cache Editor (`vane discover -e`):** Fully interactive console manager to manually add, edit, or delete local services with perfectly aligned column index padding.
+* **Self-Healing Config Cache:** If the cache file becomes corrupted (due to manual edit errors like trailing commas, duplicate commas, or missing brackets/braces), Vane automatically backs up the broken cache to `cache.json.corrupted`, re-initializes a clean cache, and features a built-in **Auto-Repair JSON Doctor** and direct system editor rescue loop inside `vane discover -e` to heal the file. Stale backup files are automatically deleted after 30 days.
+* **Enterprise-Ready:** Features a sweep-safe Enterprise compilation option that blocks active neighborhood sweeps while preserving passive and single-target discovery (see [Enterprise-Safe Compilation](#enterprise-safe-compilation-sweep-free) in the Installation section).
 
 ---
 
@@ -171,6 +208,13 @@ cd vane
 
 # Compile and install globally (requires sudo to copy to /usr/local/bin)
 make install
+```
+
+### Enterprise-Safe Compilation (Sweep-Free)
+For corporate or highly regulated networks where active neighborhood sweeps are restricted or prohibited, compile Vane with the `nosweep` build tag. This automatically disables active sweeping, while retaining stealthy passive cache matching and targeted single-host scans:
+```bash
+# Compile and install the sweep-safe Enterprise version
+make install-enterprise
 ```
 
 ### Uninstallation

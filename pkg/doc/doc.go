@@ -1,3 +1,6 @@
+// Package doc provides the interactive TUI manual (vane doc / man) with
+// system handbooks localized in English and German. Pages are rendered as
+// a scrollable in-terminal reader without external dependencies.
 package doc
 
 import (
@@ -107,6 +110,18 @@ func GetPages(lang string) []Page {
 					"",
 					"  📌 ENCRYPTER P2P FILE-TRANSFER (vane send / vane recv):",
 					"    Direkte, gesicherte Dateiübertragung über TLS 1.3 mittels sitzungsgebundener Einmalcodes.",
+					"",
+					"  📌 SERVICE DISCOVERY MATRIX (vane discover [iface]):",
+					"    Sucht im LAN nach aktiven Management-Services (Proxmox, NAS, Hass, Pi, Open WebUI, Paperless, Nextcloud).",
+					"    Unterstützt --persistent (-p) zum lautlosen Speichern im Secure-Cache,",
+					"    --sweep (-w) für aktive Subnetz-Sweeps, --specific (-s) zum Scannen einzelner IPs,",
+					"    --clear (-c) zum Wischen des Caches sowie --edit (-e) zur händischen Pflege.",
+					"    --export (-x) spiegelt deinen Cache verschlüsselt an Peers via P2P-Code.",
+					"    --import (-i) empfängt und mergt einen fremden Cache mit lokaler Hackordnung.",
+					"",
+					"  📌 NOTATIONS-ERKLÄRER (vane explain <notation>):",
+					"    Löst eine Vane-Notation oder ein Shorthand (z. B. lan.1) Schritt für Schritt auf.",
+					"    Visualisiert Dual-Stack-Entscheidungen (IPv6 ULA vs IPv4 Fallback) und Pre-flight Peeking.",
 				},
 			},
 		}
@@ -203,6 +218,18 @@ func GetPages(lang string) []Page {
 				"",
 				"  📌 P2P FILE-TRANSFER (vane send / vane recv):",
 				"    Encrypted high-performance peer-to-peer file transfers using TLS 1.3.",
+				"",
+				"  📌 SERVICE DISCOVERY MATRIX (vane discover [iface]):",
+				"    Sweeps LAN for active management platforms (Proxmox, NAS, Hass, Pi, Open WebUI, Paperless, Nextcloud).",
+				"    Supports --persistent (-p) to stealthily resolve mappings via secure cache,",
+				"    --sweep (-w) for active neighborhood sweeps, --specific (-s) to scan a single IP,",
+				"    --clear (-c) to purge cache, and --edit (-e) to manually edit registry entries.",
+				"    --export (-x) mirrors your cache securely to peers using an ephemeral pairing code.",
+				"    --import (-i) downloads and merges a remote cache using local precedence rules.",
+				"",
+				"  📌 NOTATION EXPLAINER (vane explain <notation>):",
+				"    Resolves any Vane notation or shorthand (e.g. lan.1) step-by-step with details.",
+				"    Visualizes dual-stack routing choices (IPv6 ULA vs IPv4 fallback) and pre-flight peeking.",
 			},
 		},
 	}
@@ -239,7 +266,7 @@ func ShowManual(lang string) {
 			printHeaderLine("  vane ─ Interactive Terminal Manual & System Documentation")
 		}
 		fmt.Print("  ├" + strings.Repeat("─", 74) + "┤\r\n")
-		
+
 		// Page bar: Center the items beautifully inside the box
 		var navs []string
 		labels := []string{"Konzept", "Subnetz", "MAC / WAN", "Werkzeuge"}
@@ -255,7 +282,7 @@ func ShowManual(lang string) {
 			navs = append(navs, fmt.Sprintf("[%d%s] %s", i+1, activeIndicator, labels[i]))
 		}
 		navStr := strings.Join(navs, "    ") // 4 spaces between items
-		
+
 		// Center the navigation string inside the 74-character width
 		totalInsideWidth := 74
 		navLen := len([]rune(navStr))

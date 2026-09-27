@@ -20,12 +20,12 @@ func TestCacheManagement(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp home: %v", err)
 	}
-	defer os.RemoveAll(tempHome)
+	defer func() { _ = os.RemoveAll(tempHome) }()
 
 	// Override HOME variable so GetCachePath points to our temporary home
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tempHome)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tempHome)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
 	iface := "test_eth0"
 	token := "pve"
@@ -86,7 +86,18 @@ func TestPassiveARPDiscovery(t *testing.T) {
 		t.Fatalf("RunPassiveARPDiscovery failed: %v", err)
 	}
 	if results == nil {
-		t.Error("expected non-nil results map")
+		t.Fatal("expected non-nil results map, got nil")
+	}
+	for token, entry := range results {
+		if token == "" {
+			t.Error("expected non-empty signature token key in results map")
+		}
+		if entry.IP == "" {
+			t.Errorf("entry %q missing IP address", token)
+		}
+		if entry.DiscoveryMethod == "" {
+			t.Errorf("entry %q missing DiscoveryMethod", token)
+		}
 	}
 }
 
@@ -182,8 +193,8 @@ func TestEnsureCacheOwnershipSanity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
-	defer os.Remove(tempFile.Name())
-	tempFile.Close()
+	defer func() { _ = os.Remove(tempFile.Name()) }()
+	_ = tempFile.Close()
 
 	// Should run safely and do nothing since we are not root/sudo
 	EnsureCacheOwnership(tempFile.Name())
@@ -196,13 +207,30 @@ func TestRunTargetedDiscoverySanity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp home: %v", err)
 	}
-	defer os.RemoveAll(tempHome)
+	defer func() { _ = os.RemoveAll(tempHome) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tempHome)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tempHome)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
-	_, _ = RunTargetedDiscovery("lo")
+	results, err := RunTargetedDiscovery("lo")
+	if err != nil {
+		t.Logf("RunTargetedDiscovery returned error (may be expected on loopback): %v", err)
+	}
+	if results == nil {
+		t.Fatal("expected non-nil (possibly empty) results map, got nil")
+	}
+	for token, entry := range results {
+		if token == "" {
+			t.Error("expected non-empty signature token key in results map")
+		}
+		if entry.IP == "" {
+			t.Errorf("entry %q missing IP address", token)
+		}
+		if entry.DiscoveryMethod == "" {
+			t.Errorf("entry %q missing DiscoveryMethod", token)
+		}
+	}
 }
 
 // TestRunSingleTargetDiscoverySanity runs RunSingleTargetDiscovery on loopback for a single target
@@ -212,13 +240,19 @@ func TestRunSingleTargetDiscoverySanity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp home: %v", err)
 	}
-	defer os.RemoveAll(tempHome)
+	defer func() { _ = os.RemoveAll(tempHome) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tempHome)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tempHome)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
-	_, _ = RunSingleTargetDiscovery("lo", "127.0.0.1", "")
+	result, err := RunSingleTargetDiscovery("lo", "127.0.0.1", "")
+	if err != nil {
+		t.Logf("RunSingleTargetDiscovery returned error (may be expected on loopback): %v", err)
+	}
+	if len(result) == 0 {
+		t.Log("note: no discovery result on loopback (expected)")
+	}
 }
 
 func TestMergeIncomingRegistry(t *testing.T) {
@@ -226,11 +260,11 @@ func TestMergeIncomingRegistry(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp home: %v", err)
 	}
-	defer os.RemoveAll(tempHome)
+	defer func() { _ = os.RemoveAll(tempHome) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tempHome)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tempHome)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
 	iface := "eno1"
 
@@ -303,11 +337,11 @@ func TestCacheSelfHealing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp home: %v", err)
 	}
-	defer os.RemoveAll(tempHome)
+	defer func() { _ = os.RemoveAll(tempHome) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tempHome)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tempHome)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
 	cacheFile := filepath.Join(tempHome, ".config", "vane", "cache.json")
 	err = os.MkdirAll(filepath.Dir(cacheFile), 0700)

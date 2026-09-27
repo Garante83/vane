@@ -1,3 +1,7 @@
+// Package uip implements the UIP (Unified IP) notation engine. It parses
+// Vane tokens like eno1|>...33 or 1|<...3e8e, resolves them against the
+// live interface state (IPv4 suffix overrides, EUI-64/IPv6 WAN, loopback,
+// APIPA) and bridges semantic service tokens via ARP cache matching.
 package uip
 
 import (
@@ -24,7 +28,28 @@ type Token struct {
 }
 
 // vaneRegex defines the structural pattern of the Vane CLI syntax.
-var vaneRegex = regexp.MustCompile(`([a-zA-Z0-9]+)\s*\|([>:<!])(\.+)([a-fA-F0-9\.:]+|gw|router)(?::([0-9]+))?`)
+var vaneRegex = regexp.MustCompile(`([a-zA-Z0-9]+)\s*\|([>:<!])(\.+)([a-zA-Z0-9\.:]+)(?::([0-9]+))?`)
+
+// ResolveSemanticHook is a callback function that the caller can register to resolve semantic/service tokens.
+// It takes the token and the netstate, and returns the resolved IP, a boolean indicating if it was handled, and any error.
+var ResolveSemanticHook func(token *Token, state *netstate.State) (string, bool, error)
+
+// IsSemanticToken returns true if the hostpart represents a semantic service-oriented token
+// rather than a numeric IP segment, gateway keyword, or hex MAC suffix.
+func IsSemanticToken(hostPart string) bool {
+	if hostPart == "gw" || hostPart == "router" {
+		return false
+	}
+	// If it contains any character that is not a hex digit (0-9, a-f, A-F) or a colon/dot,
+	// it must be a semantic token.
+	for _, c := range hostPart {
+		isHexChar := (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') || c == ':' || c == '.'
+		if !isHexChar {
+			return true
+		}
+	}
+	return false
+}
 
 // ParseToken validates and parses a token string (maintained for backwards compatibility).
 func ParseToken(input string) (*Token, bool) {
@@ -72,6 +97,22 @@ func ExtractToken(input string) (*Token, bool) {
 
 // ResolveTokenIP is the centralized engine for converting a Vane notation token into a raw IP address
 func ResolveTokenIP(targetToken *Token, state *netstate.State) (string, error) {
+	// If a semantic hook is registered or this is a semantic token, try resolving it first.
+	if ResolveSemanticHook != nil || IsSemanticToken(targetToken.HostPart) {
+		if ResolveSemanticHook != nil {
+			ip, handled, err := ResolveSemanticHook(targetToken, state)
+			if handled {
+				if err != nil {
+					return "", err
+				}
+				return ip, nil
+			}
+		}
+		if IsSemanticToken(targetToken.HostPart) {
+			return "", fmt.Errorf("[vane] Error: Semantisches Token '%s' konnte nicht aufgelöst werden (kein aktiver Service-Finder oder Cache vorhanden)", targetToken.HostPart)
+		}
+	}
+
 	var targetIP string
 
 	switch targetToken.Direction {
@@ -116,7 +157,7 @@ func ResolveTokenIP(targetToken *Token, state *netstate.State) (string, error) {
 					}
 					return ResolveIPv6ULA(state.IPv6Global, targetToken.HostPart), nil
 				}
-				return "", fmt.Errorf("[vane] Error: Keine valide IPv4-Adresse auf Interface %s.", targetToken.Interface)
+				return "", fmt.Errorf("[vane] Error: Keine valide IPv4-Adresse auf Interface %s", targetToken.Interface)
 			}
 
 			// Passive APIPA validation check to catch DHCP lease errors early
@@ -171,7 +212,7 @@ func ResolveTokenIP(targetToken *Token, state *netstate.State) (string, error) {
 						if err == nil && resolvedIP != "" {
 							targetIP = resolvedIP
 						} else {
-							return "", fmt.Errorf("[vane] Error: MAC-Suffix '%s' stimmt nicht mit Interface %s überein.", targetToken.HostPart, state.InterfaceName)
+							return "", fmt.Errorf("[vane] Error: MAC-Suffix '%s' stimmt nicht mit Interface %s überein", targetToken.HostPart, state.InterfaceName)
 						}
 					}
 				} else {
@@ -182,7 +223,7 @@ func ResolveTokenIP(targetToken *Token, state *netstate.State) (string, error) {
 
 	case "<": // External WAN (IPv6)
 		if state.IPv6Global == nil {
-			return "", fmt.Errorf("[vane] Error: Keine globale IPv6-Adresse (GUA) auf Interface %s.", targetToken.Interface)
+			return "", fmt.Errorf("[vane] Error: Keine globale IPv6-Adresse (GUA) auf Interface %s", targetToken.Interface)
 		}
 		targetIP = ResolveIPv6WAN(state.IPv6Global, targetToken.HostPart, state.HardwareAddr)
 
@@ -215,7 +256,7 @@ func ResolveTokenIP(targetToken *Token, state *netstate.State) (string, error) {
 		}
 
 	default:
-		return "", fmt.Errorf("[vane] Error: Unbekannter Richtungs-Modifikator '%s'.", targetToken.Direction)
+		return "", fmt.Errorf("[vane] Error: Unbekannter Richtungs-Modifikator '%s'", targetToken.Direction)
 	}
 
 	return targetIP, nil
@@ -298,6 +339,7 @@ func ResolveIPv6ULA(ula net.IP, hostPart string) string {
 // ResolveRemoteIPFromARP reads the dynamic system ARP table cache to map MAC hex suffixes to local subnet IPs
 func ResolveRemoteIPFromARP(ifaceName, suffix string) (string, error) {
 	if runtime.GOOS == "windows" {
+		// Windows: PowerShell required – Go stdlib has no direct access to ARP neighbor tables
 		cmd := exec.Command("powershell", "-NoProfile", "-Command",
 			fmt.Sprintf("Get-NetNeighbor -InterfaceAlias '%s' | Select-Object IPAddress, LinkLayerAddress", ifaceName))
 		out, err := cmd.Output()
@@ -355,17 +397,12 @@ func ResolveRemoteIPFromARP(ifaceName, suffix string) (string, error) {
 // GetDefaultGateway retrieves the active IPv4 default gateway for a local interface
 func GetDefaultGateway(ifaceName string) (string, error) {
 	if runtime.GOOS == "windows" {
+		// Windows: PowerShell required – Go stdlib has no direct access to routing table
 		cmd := exec.Command("powershell", "-NoProfile", "-Command",
 			fmt.Sprintf("Get-NetRoute -InterfaceAlias '%s' -DestinationPrefix '0.0.0.0/0' | Select-Object -ExpandProperty NextHop", ifaceName))
 		out, err := cmd.Output()
-		if err != nil {
-			cmdFallback := exec.Command("powershell", "-NoProfile", "-Command",
-				"Get-NetRoute -DestinationPrefix '0.0.0.0/0' | Select-Object -ExpandProperty NextHop")
-			outFallback, errFallback := cmdFallback.Output()
-			if errFallback == nil && len(strings.TrimSpace(string(outFallback))) > 0 {
-				return strings.TrimSpace(string(outFallback)), nil
-			}
-			return "", fmt.Errorf("failed to detect gateway on Windows: %v", err)
+		if err != nil || len(strings.TrimSpace(string(out))) == 0 {
+			return "", fmt.Errorf("no default gateway found for interface %s", ifaceName)
 		}
 		ip := strings.TrimSpace(string(out))
 		if ip == "" || ip == "0.0.0.0" {
@@ -427,6 +464,7 @@ func parseGatewayHex(hexStr string) (string, error) {
 // GetIPv6DefaultGateway retrieves the active IPv6 default gateway for an interface
 func GetIPv6DefaultGateway(ifaceName string) (string, error) {
 	if runtime.GOOS == "windows" {
+		// Windows: PowerShell required – Go stdlib has no direct access to IPv6 routing table
 		cmd := exec.Command("powershell", "-NoProfile", "-Command",
 			fmt.Sprintf("Get-NetRoute -InterfaceAlias '%s' -AddressFamily IPv6 -DestinationPrefix '::/0' | Select-Object -ExpandProperty NextHop", ifaceName))
 		out, err := cmd.Output()

@@ -1,3 +1,6 @@
+// Package trace implements an MTR-style interactive route and latency
+// profiler. It resolves the routing path to a target, concurrently pings
+// every hop and renders live sparkline graphs with loss/RTT statistics.
 package trace
 
 import (
@@ -12,6 +15,7 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	"vane/pkg/util"
 )
 
 // HopStats tracks the real-time statistics of a discovered gateway or routing hop
@@ -45,7 +49,7 @@ func PerformTrace(target string) error {
 	}
 
 	fmt.Printf("┌────────────────────────────────────────────────────────────────────┐\033[K\n")
-	fmt.Printf("│  vane trace ─ Resolving path to: %-32s  │\033[K\n", truncateStr(target, 32))
+	fmt.Printf("│  vane trace ─ Resolving path to: %-32s  │\033[K\n", util.TruncateStr(target, 32))
 	fmt.Printf("└────────────────────────────────────────────────────────────────────┘\033[K\n")
 	// Start interactive background spinner to show activity during hop discovery
 	doneChan := make(chan struct{})
@@ -94,7 +98,7 @@ func PerformTrace(target string) error {
 	signal.Notify(exitChan, os.Interrupt, syscall.SIGTERM)
 
 	// Clean screen code
-	fmt.Print("\033[?25l") // Hide cursor
+	fmt.Print("\033[?25l")       // Hide cursor
 	defer fmt.Print("\033[?25h") // Restore cursor
 
 	// Visual header length for cursor resetting (unified box top is 3 lines, header is 3 lines, table footer is 1 line, bottom is 1 line)
@@ -170,7 +174,7 @@ func PerformTrace(target string) error {
 func printStatsGrid(target, targetIP string, stats []*HopStats) {
 	info := fmt.Sprintf("%s (%s)", target, targetIP)
 	fmt.Printf("\r┌────────────────────────────────────────────────────────────────────┐\033[K\n")
-	fmt.Printf("│  vane trace ─ Target: %-43s  │\033[K\n", truncateStr(info, 43))
+	fmt.Printf("│  vane trace ─ Target: %-43s  │\033[K\n", util.TruncateStr(info, 43))
 	fmt.Printf("└────────────────────────────────────────────────────────────────────┘\033[K\n")
 	fmt.Printf("  %-3s %-15s %-6s %-7s %-7s %-7s %-7s %s\033[K\n", "HOP", "IP ADDRESS", "LOSS%", "LAST", "AVG", "BEST", "WRST", "JITTER")
 	fmt.Printf(" ────────────────────────────────────────────────────────────────────\033[K\n")
@@ -228,14 +232,6 @@ func printStatsGrid(target, targetIP string, stats []*HopStats) {
 	}
 	fmt.Printf(" ────────────────────────────────────────────────────────────────────\033[K\n")
 	fmt.Print("  [Ctrl+C] to exit. Monitoring latency in real-time...\033[K")
-}
-
-// truncateStr ensures text fields never overflow the visually aligned box borders
-func truncateStr(s string, maxLen int) string {
-	if len(s) > maxLen {
-		return s[:maxLen-3] + "..."
-	}
-	return s
 }
 
 // formatDuration formats RTT values cleanly for fixed-width columns
