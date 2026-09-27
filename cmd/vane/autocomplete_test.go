@@ -30,3 +30,18 @@ func TestSuggestVaneNotation(t *testing.T) {
 		t.Errorf("expected no suggestions for plain words, got %v", got)
 	}
 }
+
+// TestSuggestVaneNotationSemanticCompletion verifies semantic token
+// completion (e.g. "pv" -> "pve") inside a Vane notation token
+func TestSuggestVaneNotationSemanticCompletion(t *testing.T) {
+	got := suggestVaneNotation("eno1|>...pv")
+	found := false
+	for _, s := range got {
+		if strings.Contains(s, "pve") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected 'pve' completion suggestion for 'eno1|>...pv', got %v", got)
+	}
+}

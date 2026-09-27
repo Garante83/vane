@@ -13,7 +13,7 @@ import (
 	"vane/pkg/vssd"
 )
 
-var Version = "v1.0.0"
+var Version = "v1.1.0"
 
 func main() {
 	// Register the VSSD semantic resolution hook to resolve dynamic service-oriented tokens.
